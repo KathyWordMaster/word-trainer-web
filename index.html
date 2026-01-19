@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kathy单词大师训练营</title>
+    <title>Kathy单词大师训练营 - 教师监控系统</title>
     <style>
         /* 基础样式 */
         * { 
@@ -210,6 +210,44 @@
             box-shadow: 0 4px 15px rgba(7, 193, 96, 0.3);
         }
         
+        /* 预览区域样式 */
+        .preview-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .preview-table th {
+            background: #2196F3;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .preview-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        
+        .preview-table tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+        
+        .preview-table tr:hover {
+            background: #e3f2fd;
+        }
+        
         /* 响应式 */
         @media (max-width: 768px) {
             .container {
@@ -243,7 +281,7 @@
     <div class="container">
         <div class="header">
             <h1>⚡ Kathy单词大师训练营</h1>
-            <h2 style="color: white;">快来背单词！</h2>
+            <h2 style="color: white;">教师监控系统</h2>
             <p style="color: #BDC3C7; font-size: 0.9em;">👑 教师：Kathy | 💬 微信：Kathy151</p>
         </div>
         
@@ -251,8 +289,8 @@
             <!-- ========== 登录界面 ========== -->
             <div id="login-screen" class="screen active">
                 <div style="text-align: center;">
-                    <h2>🎯 开始你的单词之旅</h2>
-                    <p style="color: #666; margin-bottom: 30px;">学生注册即可开始，教师使用专属账号</p>
+                    <h2>👑 教师监控系统登录</h2>
+                    <p style="color: #666; margin-bottom: 30px;">请使用教师账号登录以查看所有学生学习情况</p>
                     
                     <div style="margin: 30px 0;">
                         <input type="text" id="username" placeholder="请输入用户名" autofocus>
@@ -275,7 +313,7 @@
                             <strong>Kathy151</strong>
                         </div>
                         <p style="color: #555; margin-top: 15px; font-size: 0.95em;">
-                            学生请用自己英文名注册新账号或找Kathy领取
+                            学生请注册新账号，教师账号：kathy151
                         </p>
                     </div>
                     
@@ -439,8 +477,12 @@
                     
                     <div style="background: #E3F2FD; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
                         <p><strong>📋 使用说明：</strong></p>
-                        <p>每行一个单词，英文和中文用空格、冒号(:)或等号(=)分隔</p>
-                        <p><strong>示例：</strong> hello 你好 或 apple:苹果 或 world=世界</p>
+                        <p>每行一个单词或短语，支持多种格式：</p>
+                        <p><strong>简单单词：</strong> hello 你好 或 apple:苹果 或 world=世界</p>
+                        <p><strong>短语（推荐用引号）：</strong> "good morning" 早上好 或 'how are you' = 你好吗</p>
+                        <p><strong>中文短语：</strong> "早上好" good morning</p>
+                        <p><strong>分隔符：</strong> 空格、冒号(:)、等号(=)、逗号(,)、中文冒号(：)、中文逗号(，)</p>
+                        <p><strong>💡 提示：</strong> 输入完成后点击"预览单词"查看效果，确认无误后再导入</p>
                     </div>
                     
                     <div style="margin-bottom: 25px;">
@@ -450,12 +492,42 @@ hello 你好
 world 世界
 apple 苹果
 book 书
-computer 电脑"></textarea>
+computer 电脑
+"good morning" 早上好
+'how are you' = 你好吗"></textarea>
+                    </div>
+                    
+                    <!-- 预览区域 -->
+                    <div id="preview-area" style="display: none;">
+                        <h3 style="color: #2196F3; margin-bottom: 15px;">👁️ 预览单词（共 <span id="preview-count">0</span> 个）</h3>
+                        <div class="preview-container">
+                            <table class="preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>英文/短语</th>
+                                        <th>中文</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-table-body">
+                                    <!-- 预览内容将通过JavaScript动态添加 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="text-align: center; margin: 15px 0;">
+                            <button class="btn btn-gold" onclick="confirmImport()">
+                                <span>✅ 确认导入</span>
+                            </button>
+                            <button class="btn btn-red" onclick="cancelImport()">
+                                <span>❌ 取消导入</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                        <button class="btn" onclick="importWords()">
-                            <span>📥 导入单词</span>
+                        <button class="btn" onclick="previewWords()">
+                            <span>👁️ 预览单词</span>
                         </button>
                         <button class="btn btn-blue" onclick="pasteFromClipboard()">
                             <span>📋 粘贴内容</span>
@@ -622,7 +694,8 @@ computer 电脑"></textarea>
             trainingWords: [],      // 当前训练的单词
             currentWordIndex: 0,
             trainingMode: 'en_to_cn', // en_to_cn 或 cn_to_en
-            cardFlipped: false
+            cardFlipped: false,
+            previewWordsList: []    // 预览单词列表
         };
         
         // ========== 页面切换函数 ==========
@@ -1164,6 +1237,9 @@ computer 电脑"></textarea>
         
         function showAddWords() {
             showScreen('add-words-screen');
+            // 重置预览区域
+            document.getElementById('preview-area').style.display = 'none';
+            document.getElementById('import-result').style.display = 'none';
         }
         
         function pasteFromClipboard() {
@@ -1171,6 +1247,10 @@ computer 电脑"></textarea>
                 navigator.clipboard.readText()
                     .then(text => {
                         document.getElementById('word-input').value = text;
+                        // 自动预览
+                        setTimeout(() => {
+                            previewWords();
+                        }, 100);
                     })
                     .catch(err => {
                         alert('无法访问剪贴板，请手动粘贴');
@@ -1181,80 +1261,178 @@ computer 电脑"></textarea>
         }
         
         function loadExampleWords() {
-            const examples = `hello 你好
+            const examples = `# 简单单词
+hello 你好
 world 世界
 apple 苹果
-book 书
+
+# 短语（推荐使用引号）
+"good morning" 早上好
+'how are you' = 你好吗
+"thank you" 谢谢你
+
+# 中英混合
+"早上好" good morning
+"再见" goodbye
+
+# 其他格式
 computer 电脑
-water 水
-friend 朋友
-school 学校
-teacher 老师
-student 学生`;
+book:书
+water=水`;
             
             document.getElementById('word-input').value = examples;
-            alert('📚 已加载示例单词');
+            alert('📚 已加载示例单词和短语');
         }
         
-        function importWords() {
+        // ========== 修复短语导入乱码问题 ==========
+        function previewWords() {
             const input = document.getElementById('word-input').value.trim();
             
             if (!input) {
-                alert('请输入单词');
+                alert('请输入单词或短语');
                 return;
             }
             
             const lines = input.split('\n');
-            let added = 0;
-            let duplicates = 0;
+            appState.previewWordsList = [];
+            let errors = [];
             
-            for (const line of lines) {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
                 const trimmed = line.trim();
                 if (!trimmed) continue;
                 
-                // 解析单词
-                let english = '', chinese = '';
-                const separators = [' ', ':', '=', ',', '：', '，'];
+                // 跳过注释行（以#开头）
+                if (trimmed.startsWith('#')) continue;
                 
-                for (const sep of separators) {
-                    if (trimmed.includes(sep)) {
-                        const parts = trimmed.split(sep);
-                        if (parts.length >= 2) {
-                            english = parts[0].trim();
-                            chinese = parts.slice(1).join(sep).trim();
+                let english = '', chinese = '';
+                
+                // 方案1：尝试匹配带引号的短语格式
+                // 支持英文双引号、单引号、中文引号
+                const quoteMatch = trimmed.match(/^(["'「])(.+?)\1\s*([:=\s，,])\s*(.+)$/);
+                
+                if (quoteMatch) {
+                    // 如果使用引号格式
+                    english = quoteMatch[2].trim();
+                    chinese = quoteMatch[4].trim();
+                } else {
+                    // 方案2：尝试匹配常见分隔符
+                    const separators = [' ', ':', '=', ',', '：', '，'];
+                    let foundSeparator = false;
+                    
+                    for (const sep of separators) {
+                        // 查找分隔符的位置
+                        const sepIndex = trimmed.indexOf(sep);
+                        if (sepIndex > 0) {
+                            english = trimmed.substring(0, sepIndex).trim();
+                            chinese = trimmed.substring(sepIndex + sep.length).trim();
+                            foundSeparator = true;
                             break;
+                        }
+                    }
+                    
+                    // 方案3：如果没有找到分隔符，尝试按空格分割（简单单词）
+                    if (!foundSeparator) {
+                        const parts = trimmed.split(/\s+/);
+                        if (parts.length >= 2) {
+                            english = parts[0];
+                            chinese = parts.slice(1).join(' ');
                         }
                     }
                 }
                 
-                // 如果没有找到分隔符，尝试按空格分割
-                if (!english && !chinese) {
-                    const parts = trimmed.split(/\s+/);
-                    if (parts.length >= 2) {
-                        english = parts[0];
-                        chinese = parts.slice(1).join(' ');
-                    }
-                }
+                // 清理中英文两侧可能的多余空格和引号
+                english = english.replace(/^["'`「」]+|["'`「」]+$/g, '').trim();
+                chinese = chinese.replace(/^["'`「」]+|["'`「」]+$/g, '').trim();
                 
                 if (english && chinese) {
-                    // 检查是否重复
-                    const exists = appState.userWords.some(w => 
-                        w.english.toLowerCase() === english.toLowerCase());
-                    
-                    if (!exists) {
-                        appState.userWords.push({
-                            english: english,
-                            chinese: chinese,
-                            status: '',
-                            reviewCount: 0,
-                            addedDate: new Date().toISOString()
-                        });
-                        added++;
-                    } else {
-                        duplicates++;
-                    }
+                    appState.previewWordsList.push({
+                        english: english,
+                        chinese: chinese,
+                        lineNumber: i + 1,
+                        isValid: true
+                    });
+                } else {
+                    errors.push(`第${i+1}行: ${trimmed}`);
                 }
             }
+            
+            // 显示预览结果
+            if (appState.previewWordsList.length > 0) {
+                displayPreview();
+            } else {
+                alert('没有找到有效的单词/短语。请检查输入格式。');
+            }
+            
+            // 如果有错误，显示错误信息
+            if (errors.length > 0) {
+                const errorMsg = `以下行格式错误，已忽略：\n${errors.slice(0, 5).join('\n')}`;
+                if (errors.length > 5) {
+                    errorMsg += `\n... 还有 ${errors.length - 5} 个错误`;
+                }
+                alert(errorMsg);
+            }
+        }
+        
+        function displayPreview() {
+            const previewArea = document.getElementById('preview-area');
+            const previewCount = document.getElementById('preview-count');
+            const previewTableBody = document.getElementById('preview-table-body');
+            
+            // 更新计数
+            previewCount.textContent = appState.previewWordsList.length;
+            
+            // 清空表格
+            previewTableBody.innerHTML = '';
+            
+            // 填充表格
+            appState.previewWordsList.forEach((word, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td><strong>${word.english}</strong></td>
+                    <td>${word.chinese}</td>
+                    <td style="color: #4CAF50;">✅ 有效</td>
+                `;
+                previewTableBody.appendChild(row);
+            });
+            
+            // 显示预览区域
+            previewArea.style.display = 'block';
+            
+            // 滚动到预览区域
+            previewArea.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function confirmImport() {
+            if (appState.previewWordsList.length === 0) {
+                alert('没有要导入的单词');
+                return;
+            }
+            
+            let added = 0;
+            let duplicates = 0;
+            
+            appState.previewWordsList.forEach(word => {
+                // 检查是否重复（不区分大小写）
+                const exists = appState.userWords.some(w => 
+                    w.english.toLowerCase() === word.english.toLowerCase()
+                );
+                
+                if (!exists) {
+                    appState.userWords.push({
+                        english: word.english,
+                        chinese: word.chinese,
+                        status: '',
+                        reviewCount: 0,
+                        addedDate: new Date().toISOString(),
+                        type: (word.english.includes(' ') || word.english.length > 15) ? 'phrase' : 'word'
+                    });
+                    added++;
+                } else {
+                    duplicates++;
+                }
+            });
             
             // 保存数据
             saveStudentData();
@@ -1262,18 +1440,19 @@ student 学生`;
             // 显示结果
             const resultDiv = document.getElementById('import-result');
             let resultHTML = `<h4>📥 导入结果</h4>`;
-            resultHTML += `<p>✅ 成功添加: <strong>${added}</strong> 个新单词</p>`;
+            resultHTML += `<p>✅ 成功导入: <strong>${added}</strong> 个新单词/短语</p>`;
             
             if (duplicates > 0) {
-                resultHTML += `<p>⚠️ 跳过重复: <strong>${duplicates}</strong> 个单词</p>`;
+                resultHTML += `<p>⚠️ 跳过重复: <strong>${duplicates}</strong> 个</p>`;
             }
             
-            resultHTML += `<p>📊 当前单词总数: <strong>${appState.userWords.length}</strong></p>`;
+            resultHTML += `<p>📊 当前总数: <strong>${appState.userWords.length}</strong></p>`;
             
             if (added > 0) {
-                resultHTML += `<p>💡 现在可以开始训练了！</p>`;
-                // 清空输入框
+                resultHTML += `<p style="color: #4CAF50;">💡 导入成功！现在可以开始训练了！</p>`;
+                // 清空输入框和预览区域
                 document.getElementById('word-input').value = '';
+                document.getElementById('preview-area').style.display = 'none';
             }
             
             resultDiv.innerHTML = resultHTML;
@@ -1281,6 +1460,17 @@ student 学生`;
             
             // 更新统计
             updateStudentStats();
+            
+            // 重置预览列表
+            appState.previewWordsList = [];
+        }
+        
+        function cancelImport() {
+            // 隐藏预览区域
+            document.getElementById('preview-area').style.display = 'none';
+            // 重置预览列表
+            appState.previewWordsList = [];
+            alert('❌ 已取消导入');
         }
         
         function startTraining() {
