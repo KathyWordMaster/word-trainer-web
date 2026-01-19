@@ -6,100 +6,214 @@
     <title>Kathy单词大师训练营</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Microsoft YaHei', Arial, sans-serif; }
-        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
-        .header { background: linear-gradient(135deg, #2C3E50 0%, #4A6491 100%); color: white; padding: 30px; text-align: center; }
-        .header h1 { font-size: 2em; margin-bottom: 10px; color: #F1C40F; }
-        .main-content { padding: 30px; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Microsoft YaHei', Arial, sans-serif; 
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); 
+            overflow: hidden; 
+        }
+        
+        .header { 
+            background: linear-gradient(135deg, #2C3E50 0%, #4A6491 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        
+        .header h1 { 
+            font-size: 2.2em; 
+            margin-bottom: 10px; 
+            color: #F1C40F; 
+        }
+        
+        .main-content { 
+            padding: 30px; 
+        }
         
         /* 页面切换 */
-        .screen { display: none; }
-        .screen.active { display: block; }
+        .screen { 
+            display: none; 
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .screen.active { 
+            display: block; 
+        }
         
         /* 按钮样式 */
         .btn { 
             background: #4CAF50; 
             color: white; 
             border: none; 
-            padding: 12px 24px; 
+            padding: 14px 28px; 
             margin: 10px; 
-            border-radius: 8px; 
+            border-radius: 10px; 
             cursor: pointer; 
             font-size: 16px; 
+            font-weight: bold;
             transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .btn:hover { background: #45a049; transform: translateY(-2px); }
-        .btn-blue { background: #2196F3; }
-        .btn-blue:hover { background: #1976D2; }
-        .btn-red { background: #F44336; }
-        .btn-red:hover { background: #D32F2F; }
-        .btn-purple { background: #9C27B0; }
-        .btn-purple:hover { background: #7B1FA2; }
-        .btn-gold { background: #FFC107; color: #333; }
-        .btn-gold:hover { background: #FFA000; }
+        
+        .btn:hover { 
+            background: #45a049; 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .btn-blue { 
+            background: #2196F3; 
+        }
+        
+        .btn-blue:hover { 
+            background: #1976D2; 
+        }
+        
+        .btn-red { 
+            background: #F44336; 
+        }
+        
+        .btn-red:hover { 
+            background: #D32F2F; 
+        }
+        
+        .btn-purple { 
+            background: #9C27B0; 
+        }
+        
+        .btn-purple:hover { 
+            background: #7B1FA2; 
+        }
+        
+        .btn-gold { 
+            background: #FFC107; 
+            color: #333; 
+        }
+        
+        .btn-gold:hover { 
+            background: #FFA000; 
+        }
         
         /* 输入框 */
-        .login-form input, textarea { 
-            width: 100%; 
+        input[type="text"], 
+        input[type="password"], 
+        textarea {
+            width: 100%;
             max-width: 400px;
-            padding: 15px; 
-            margin: 10px 0; 
-            border: 2px solid #ddd; 
-            border-radius: 8px; 
-            font-size: 16px; 
+            padding: 16px;
+            margin: 12px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border 0.3s;
         }
-        textarea { 
-            height: 200px; 
+        
+        input:focus, 
+        textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+        
+        textarea {
+            height: 200px;
             font-family: monospace;
+            resize: vertical;
         }
         
         /* 单词卡片 */
         .word-card {
             background: white;
-            border: 3px solid #4CAF50;
-            border-radius: 15px;
-            height: 250px;
+            border: 4px solid #4CAF50;
+            border-radius: 20px;
+            height: 280px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 30px 0;
+            margin: 30px auto;
             cursor: pointer;
-            font-size: 2.5em;
+            font-size: 2.8em;
             font-weight: bold;
             transition: all 0.3s;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
         }
+        
         .word-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
         }
+        
         .word-card.flipped {
-            background: #E8F5E9;
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
             border-color: #2E7D32;
+        }
+        
+        .card-front, .card-back {
+            padding: 30px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .card-back {
+            color: #2E7D32;
+            display: none;
+        }
+        
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.5s;
         }
         
         /* 统计卡片 */
         .stats-card {
             background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        
-        /* 进度条 */
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            margin: 15px 0;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #8BC34A);
-            transition: width 0.5s;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            border-left: 5px solid #4CAF50;
         }
         
         /* 表格 */
@@ -107,312 +221,655 @@
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        .data-table th, .data-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: center;
-        }
+        
         .data-table th {
             background: #4CAF50;
             color: white;
+            padding: 15px;
+            text-align: left;
         }
+        
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
         .data-table tr:hover {
             background: #f5f5f5;
         }
         
-        /* 微信联系 */
-        .wechat-contact {
+        /* 微信联系样式 */
+        .contact-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+            border: 2px dashed #4CAF50;
+        }
+        
+        .wechat-badge {
             background: #07C160;
             color: white;
-            padding: 12px 25px;
+            padding: 14px 28px;
             border-radius: 25px;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-weight: bold;
-            margin: 20px 0;
             font-size: 1.1em;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(7, 193, 96, 0.3);
         }
         
         /* 功能特点 */
-        .features {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            margin: 20px 0;
-        }
-        .feature {
-            background: #E3F2FD;
-            padding: 10px 15px;
-            border-radius: 10px;
-            border: 1px solid #90CAF9;
-            font-size: 0.9em;
-            color: #1565C0;
+            margin: 25px 0;
         }
         
-        /* 响应式 */
-        @media (max-width: 600px) {
-            .container { margin: 5px; }
-            .word-card { height: 200px; font-size: 2em; }
-            .btn { padding: 10px 20px; margin: 5px; }
+        .feature-item {
+            background: #E3F2FD;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #90CAF9;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .word-card {
+                height: 220px;
+                font-size: 2.2em;
+                margin: 20px 10px;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                margin: 8px;
+                font-size: 15px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 状态标签 */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .status-remembered {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+        
+        .status-fuzzy {
+            background: #FFF3E0;
+            color: #EF6C00;
+        }
+        
+        .status-forgot {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        
+        /* 加载动画 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 提示信息 */
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .alert-success {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+        }
+        
+        .alert-error {
+            background: #FFEBEE;
+            color: #C62828;
+            border: 1px solid #FFCDD2;
+        }
+        
+        .alert-info {
+            background: #E3F2FD;
+            color: #1565C0;
+            border: 1px solid #BBDEFB;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- 顶部标题栏 -->
         <div class="header">
             <h1>⚡ Kathy单词大师训练营</h1>
-            <h2 style="color: white;">快来背单词！</h2>
-            <p style="color: #BDC3C7; font-size: 0.9em;">智能记忆 · 教师监控 · 高效学习</p>
+            <h2 style="color: white; margin-bottom: 10px;">快来背单词！</h2>
+            <p style="color: #BDC3C7; font-size: 0.95em;">智能记忆 · 教师监控 · 高效学习</p>
         </div>
         
         <div class="main-content">
             <!-- ========== 登录界面 ========== -->
             <div id="login-screen" class="screen active">
-                <div class="login-form" style="text-align: center;">
-                    <h2>用户登录 / 注册</h2>
-                    <input type="text" id="username" placeholder="请输入用户名" autofocus>
-                    
-                    <div style="margin: 20px 0;">
-                        <button class="btn" onclick="login()">登录</button>
-                        <button class="btn btn-blue" onclick="createUser()">新用户注册</button>
-                    </div>
-                    
-                    <div class="features">
-                        <div class="feature">📚 智能闪卡记忆</div>
-                        <div class="feature">📈 进度追踪</div>
-                        <div class="feature">👥 多用户</div>
-                        <div class="feature">👑 教师监管</div>
-                    </div>
+                <div style="text-align: center;">
+                    <h2>🎯 开始你的单词之旅</h2>
+                    <p style="color: #666; margin-bottom: 30px;">学生注册即可开始，教师使用专属账号</p>
                     
                     <div style="margin: 30px 0;">
-                        <div class="wechat-contact">
-                            💬 微信联系：<strong>Kathy151</strong>
+                        <input type="text" id="username" placeholder="请输入用户名" autofocus>
+                        
+                        <div style="margin: 25px 0;">
+                            <button class="btn" onclick="login()">
+                                <span>🔑 登录</span>
+                            </button>
+                            <button class="btn btn-blue" onclick="register()">
+                                <span>📝 新用户注册</span>
+                            </button>
                         </div>
-                        <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
-                            学生直接注册，教师账号：kathy151
+                    </div>
+                    
+                    <!-- 功能特点展示 -->
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <div style="font-size: 1.5em; margin-bottom: 8px;">📚</div>
+                            <div style="font-weight: bold; color: #1565C0;">智能闪卡</div>
+                            <div style="font-size: 0.9em; color: #666;">科学记忆法</div>
+                        </div>
+                        <div class="feature-item">
+                            <div style="font-size: 1.5em; margin-bottom: 8px;">📈</div>
+                            <div style="font-weight: bold; color: #1565C0;">进度追踪</div>
+                            <div style="font-size: 0.9em; color: #666;">实时掌握进度</div>
+                        </div>
+                        <div class="feature-item">
+                            <div style="font-size: 1.5em; margin-bottom: 8px;">👥</div>
+                            <div style="font-weight: bold; color: #1565C0;">多用户</div>
+                            <div style="font-size: 0.9em; color: #666;">支持班级学习</div>
+                        </div>
+                        <div class="feature-item">
+                            <div style="font-size: 1.5em; margin-bottom: 8px;">👑</div>
+                            <div style="font-weight: bold; color: #1565C0;">教师监管</div>
+                            <div style="font-size: 0.9em; color: #666;">实时监控进度</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 联系信息 -->
+                    <div class="contact-section">
+                        <h3 style="color: #2C3E50; margin-bottom: 20px;">💬 联系我们</h3>
+                        <div class="wechat-badge">
+                            <span>微信联系：</span>
+                            <strong>Kathy151</strong>
+                        </div>
+                        <p style="color: #555; margin-top: 15px; font-size: 0.95em;">
+                            学生注册即可使用，教师账号：kathy151
+                        </p>
+                        <p style="color: #777; margin-top: 10px; font-size: 0.85em;">
+                            有任何问题随时联系老师
                         </p>
                     </div>
                     
-                    <!-- 状态信息 -->
-                    <div id="login-status" style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px; display: none;"></div>
+                    <!-- 调试信息 -->
+                    <div id="login-status" class="alert" style="display: none;"></div>
                 </div>
             </div>
             
             <!-- ========== 主菜单 ========== -->
             <div id="menu-screen" class="screen">
-                <h2 id="welcome-message">欢迎</h2>
+                <h2 id="welcome-message" style="text-align: center; margin-bottom: 30px;"></h2>
                 
                 <!-- 教师面板 -->
                 <div id="teacher-panel" class="stats-card" style="display: none;">
-                    <h3>👑 教师管理面板</h3>
-                    <p style="color: #666; margin-bottom: 15px;">教师：Kathy老师 | 微信：Kathy151</p>
-                    <button class="btn btn-purple" onclick="showStudentStats()">查看学生学习情况</button>
-                    <button class="btn btn-blue" onclick="showAllWords()">查看所有单词</button>
+                    <h3 style="color: #9C27B0; margin-bottom: 20px;">👑 教师管理面板</h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        <span style="font-weight: bold;">教师：</span>Kathy老师
+                        <span style="margin: 0 15px;">|</span>
+                        <span style="font-weight: bold;">微信：</span>Kathy151
+                    </p>
+                    
+                    <div style="margin: 25px 0;">
+                        <button class="btn btn-purple" onclick="showStudentStats()">
+                            <span>📊 查看学生学习情况</span>
+                        </button>
+                        <button class="btn btn-blue" onclick="showAllStudents()">
+                            <span>👥 管理学生</span>
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <p>💡 您可以查看所有学生的学习进度、添加的单词和掌握情况</p>
+                    </div>
                 </div>
                 
                 <!-- 学生面板 -->
                 <div id="student-panel" class="stats-card" style="display: none;">
-                    <h3>🎓 我的学习面板</h3>
-                    <div id="user-stats">
-                        <p>正在加载统计数据...</p>
+                    <h3 style="color: #2196F3; margin-bottom: 20px;">🎓 我的学习中心</h3>
+                    
+                    <!-- 学习统计 -->
+                    <div id="learning-stats">
+                        <div class="loader"></div>
                     </div>
-                    <div style="margin-top: 20px;">
-                        <button class="btn" onclick="showBatchAdd()">📝 批量添加单词</button>
-                        <button class="btn btn-blue" onclick="startTraining()">🎯 开始训练</button>
-                        <button class="btn" onclick="showMyWords()">📖 我的单词库</button>
+                    
+                    <!-- 快速操作 -->
+                    <div style="margin: 30px 0;">
+                        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">
+                            <button class="btn" onclick="showAddWords()">
+                                <span>📝 批量添加单词</span>
+                            </button>
+                            <button class="btn btn-blue" onclick="startTraining()">
+                                <span>🎯 开始训练</span>
+                            </button>
+                            <button class="btn" onclick="showMyWords()">
+                                <span>📖 我的单词库</span>
+                            </button>
+                            <button class="btn btn-gold" onclick="showReviewWords()">
+                                <span>🔄 复习弱项</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 今日目标 -->
+                    <div style="background: #FFF3E0; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        <h4 style="color: #EF6C00; margin-bottom: 10px;">🎯 今日学习目标</h4>
+                        <p style="color: #666;">建议每天学习 <strong>20个</strong> 新单词，复习 <strong>50个</strong> 旧单词</p>
+                        <div class="progress-bar" style="margin: 15px 0;">
+                            <div id="daily-progress" class="progress-fill" style="width: 30%;"></div>
+                        </div>
+                        <p style="color: #666; font-size: 0.9em;">今日进度：30%</p>
                     </div>
                 </div>
                 
                 <!-- 通用功能 -->
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-gold" onclick="showSettings()">⚙️ 设置</button>
-                    <button class="btn btn-red" onclick="logout()">退出登录</button>
-                </div>
-            </div>
-            
-            <!-- ========== 单词训练 ========== -->
-            <div id="train-screen" class="screen">
-                <h2>单词训练</h2>
-                
-                <div style="text-align: center;">
-                    <div class="progress-bar">
-                        <div id="train-progress" class="progress-fill" style="width: 0%"></div>
+                <div style="text-align: center; margin-top: 40px;">
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn" onclick="showSettings()">
+                            <span>⚙️ 系统设置</span>
+                        </button>
+                        <button class="btn btn-red" onclick="logout()">
+                            <span>🚪 退出登录</span>
+                        </button>
                     </div>
-                    <p id="progress-text">进度: 0/0</p>
+                    
+                    <!-- 联系信息 -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; display: inline-block;">
+                        <p style="color: #666; margin: 0;">
+                            💬 需要帮助？微信联系：<strong>Kathy151</strong>
+                        </p>
+                    </div>
                 </div>
                 
-                <div id="word-card" class="word-card" onclick="flipCard()">
-                    <div id="card-front">点击开始</div>
-                    <div id="card-back" style="display: none; color: #2E7D32;"></div>
-                </div>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <button class="btn" onclick="markWord('remembered')">✅ 记得</button>
-                    <button class="btn btn-blue" onclick="markWord('fuzzy')">🔄 模糊</button>
-                    <button class="btn btn-red" onclick="markWord('forgot')">❌ 忘记</button>
-                    <button class="btn" onclick="nextWord()">跳过</button>
-                </div>
-                
+                <!-- 操作反馈 -->
+                <div id="menu-feedback" class="alert" style="display: none; margin-top: 20px;"></div>
+            </div>
+            
+            <!-- ========== 单词训练界面 ========== -->
+            <div id="train-screen" class="screen">
                 <div style="text-align: center;">
-                    <button class="btn btn-gold" onclick="toggleMode()">切换模式</button>
-                    <button class="btn btn-red" onclick="showMenu()">结束训练</button>
-                </div>
-                
-                <div style="margin-top: 20px; text-align: center; color: #666;">
-                    <p>模式：<span id="train-mode">英文 → 中文</span></p>
-                    <p id="word-hint">点击卡片查看中文意思</p>
+                    <h2 style="margin-bottom: 10px;">🎯 单词训练</h2>
+                    <p style="color: #666; margin-bottom: 25px;">点击卡片翻转，根据记忆程度选择按钮</p>
+                    
+                    <!-- 训练控制 -->
+                    <div style="margin-bottom: 30px;">
+                        <div class="progress-container">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span id="progress-text" style="color: #666;">进度: 0/0</span>
+                                <span id="mode-text" style="color: #2196F3; font-weight: bold;">英文 → 中文</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="train-progress" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 20px 0;">
+                            <button class="btn btn-gold" onclick="toggleTrainingMode()" style="padding: 10px 20px; font-size: 14px;">
+                                <span>🔄 切换训练模式</span>
+                            </button>
+                            <button class="btn" onclick="shuffleWords()" style="padding: 10px 20px; font-size: 14px;">
+                                <span>🎲 重新洗牌</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 单词卡片 -->
+                    <div id="word-card" class="word-card" onclick="flipCard()">
+                        <div id="card-front" class="card-front">点击开始训练</div>
+                        <div id="card-back" class="card-back"></div>
+                    </div>
+                    
+                    <!-- 记忆按钮 -->
+                    <div style="margin: 35px 0;">
+                        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">
+                            <button class="btn" onclick="markWord('remembered')" style="padding: 16px 32px; font-size: 17px;">
+                                <span>✅ 记得</span>
+                            </button>
+                            <button class="btn btn-blue" onclick="markWord('fuzzy')" style="padding: 16px 32px; font-size: 17px;">
+                                <span>🔄 模糊</span>
+                            </button>
+                            <button class="btn btn-red" onclick="markWord('forgot')" style="padding: 16px 32px; font-size: 17px;">
+                                <span>❌ 忘记</span>
+                            </button>
+                            <button class="btn" onclick="skipWord()" style="padding: 16px 32px; font-size: 17px;">
+                                <span>⏭️ 跳过</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 训练统计 -->
+                    <div id="train-stats" style="margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; display: none;">
+                        <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.8em; color: #4CAF50; font-weight: bold;" id="stats-remembered">0</div>
+                                <div style="color: #666; font-size: 0.9em;">记得</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.8em; color: #FF9800; font-weight: bold;" id="stats-fuzzy">0</div>
+                                <div style="color: #666; font-size: 0.9em;">模糊</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.8em; color: #F44336; font-weight: bold;" id="stats-forgot">0</div>
+                                <div style="color: #666; font-size: 0.9em;">忘记</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.8em; color: #2196F3; font-weight: bold;" id="stats-total">0</div>
+                                <div style="color: #666; font-size: 0.9em;">总数</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 控制按钮 -->
+                    <div style="margin-top: 30px;">
+                        <button class="btn btn-red" onclick="endTraining()">
+                            <span>🏁 结束训练</span>
+                        </button>
+                        <button class="btn" onclick="showMenu()">
+                            <span>📋 返回菜单</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <!-- ========== 批量添加 ========== -->
-            <div id="batch-screen" class="screen">
-                <h2>批量添加单词</h2>
-                <p>格式：每行一个单词，英文和中文用空格或冒号分隔</p>
-                <p>示例：hello 你好 或 apple:苹果 或 world=世界</p>
-                
-                <textarea id="batch-input" placeholder="在这里输入单词..."></textarea>
-                
-                <div style="text-align: center;">
-                    <button class="btn" onclick="addBatchWords()">导入单词</button>
-                    <button class="btn btn-blue" onclick="pasteFromClipboard()">粘贴</button>
-                    <button class="btn btn-red" onclick="showMenu()">返回</button>
+            <!-- ========== 批量添加单词 ========== -->
+            <div id="add-screen" class="screen">
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <h2 style="text-align: center; margin-bottom: 20px;">📝 批量添加单词</h2>
+                    
+                    <div class="alert alert-info" style="margin-bottom: 25px;">
+                        <p><strong>📋 使用说明：</strong></p>
+                        <p>每行一个单词，英文和中文用空格、冒号(:)或等号(=)分隔</p>
+                        <p><strong>示例：</strong> hello 你好 或 apple:苹果 或 world=世界</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <textarea id="word-input" placeholder="在这里粘贴或输入单词...
+示例：
+hello 你好
+world 世界
+apple 苹果
+book 书
+computer 电脑"></textarea>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <button class="btn" onclick="importWords()">
+                            <span>📥 导入单词</span>
+                        </button>
+                        <button class="btn btn-blue" onclick="pasteFromClipboard()">
+                            <span>📋 粘贴内容</span>
+                        </button>
+                        <button class="btn" onclick="loadExampleWords()">
+                            <span>📚 加载示例</span>
+                        </button>
+                        <button class="btn btn-red" onclick="showMenu()">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 导入结果 -->
+                    <div id="import-result" class="alert" style="display: none;"></div>
+                    
+                    <!-- 当前单词统计 -->
+                    <div id="word-count-info" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                        <h4 style="color: #333; margin-bottom: 15px;">📊 单词统计</h4>
+                        <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #2196F3; font-weight: bold;" id="total-words">0</div>
+                                <div style="color: #666; font-size: 0.9em;">单词总数</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #4CAF50; font-weight: bold;" id="new-words">0</div>
+                                <div style="color: #666; font-size: 0.9em;">新单词</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #FF9800; font-weight: bold;" id="duplicate-words">0</div>
+                                <div style="color: #666; font-size: 0.9em;">重复单词</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div id="batch-result" style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px; display: none;"></div>
             </div>
             
             <!-- ========== 我的单词库 ========== -->
             <div id="words-screen" class="screen">
-                <h2>我的单词库</h2>
-                
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="search-input" placeholder="搜索单词..." 
-                           style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd;"
-                           oninput="filterWords()">
-                </div>
-                
-                <div id="words-list">
-                    <p>正在加载单词...</p>
-                </div>
-                
-                <div style="text-align: center; margin-top: 20px;">
-                    <button class="btn btn-red" onclick="showMenu()">返回</button>
+                <div style="max-width: 900px; margin: 0 auto;">
+                    <h2 style="text-align: center; margin-bottom: 25px;">📖 我的单词库</h2>
+                    
+                    <!-- 搜索和筛选 -->
+                    <div style="margin-bottom: 30px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 20px;">
+                            <input type="text" id="word-search" placeholder="🔍 搜索单词..." 
+                                   style="flex: 1; min-width: 250px; max-width: 400px;">
+                            <select id="word-filter" style="padding: 12px; border-radius: 8px; border: 2px solid #ddd;">
+                                <option value="all">全部单词</option>
+                                <option value="remembered">✅ 记得的</option>
+                                <option value="fuzzy">🔄 模糊的</option>
+                                <option value="forgot">❌ 忘记的</option>
+                                <option value="new">🆕 未学习的</option>
+                            </select>
+                            <button class="btn" onclick="filterWords()" style="padding: 12px 24px;">
+                                <span>筛选</span>
+                            </button>
+                        </div>
+                        
+                        <div style="text-align: center; color: #666; margin-bottom: 20px;">
+                            <p>找到 <span id="filtered-count" style="font-weight: bold; color: #2196F3;">0</span> 个单词</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 单词列表 -->
+                    <div id="words-list-container">
+                        <div class="loader"></div>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div style="text-align: center; margin-top: 40px;">
+                        <button class="btn" onclick="exportWords()">
+                            <span>📤 导出单词</span>
+                        </button>
+                        <button class="btn btn-red" onclick="showMenu()">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <!-- ========== 学生统计（教师用） ========== -->
-            <div id="stats-screen" class="screen">
-                <h2>👑 学生学习情况</h2>
-                <p style="color: #666; margin-bottom: 20px;">教师：Kathy老师 | 微信：Kathy151</p>
-                
-                <div style="text-align: center; margin: 20px 0;">
-                    <button class="btn" onclick="loadAllStudents()">🔄 刷新数据</button>
-                    <button class="btn btn-red" onclick="showMenu()">返回</button>
-                </div>
-                
-                <div id="students-data">
-                    <p>正在加载学生数据...</p>
-                </div>
-            </div>
-            
-            <!-- ========== 设置页面 ========== -->
+            <!-- ========== 设置界面 ========== -->
             <div id="settings-screen" class="screen">
-                <h2>设置</h2>
-                
-                <div class="stats-card">
-                    <h3>训练设置</h3>
-                    <div style="margin: 15px 0;">
-                        <label style="display: block; margin: 10px 0;">
-                            <input type="checkbox" id="auto-flip" checked> 自动翻牌（3秒后显示答案）
-                        </label>
-                        <label style="display: block; margin: 10px 0;">
-                            <input type="checkbox" id="sound-effect" checked> 启用音效
-                        </label>
+                <div style="max-width: 700px; margin: 0 auto;">
+                    <h2 style="text-align: center; margin-bottom: 30px;">⚙️ 系统设置</h2>
+                    
+                    <div class="stats-card">
+                        <h3 style="color: #333; margin-bottom: 20px;">🎯 训练设置</h3>
+                        
+                        <div style="margin: 20px 0;">
+                            <label style="display: block; margin: 15px 0; cursor: pointer;">
+                                <input type="checkbox" id="auto-flip" checked style="margin-right: 10px;">
+                                <span style="font-weight: bold;">自动翻牌</span>
+                                <span style="color: #666; display: block; margin-top: 5px;">显示单词后3秒自动显示翻译</span>
+                            </label>
+                            
+                            <label style="display: block; margin: 15px 0; cursor: pointer;">
+                                <input type="checkbox" id="sound-effects" checked style="margin-right: 10px;">
+                                <span style="font-weight: bold;">音效提示</span>
+                                <span style="color: #666; display: block; margin-top: 5px;">操作时播放提示音</span>
+                            </label>
+                            
+                            <label style="display: block; margin: 15px 0; cursor: pointer;">
+                                <input type="checkbox" id="daily-reminder" checked style="margin-right: 10px;">
+                                <span style="font-weight: bold;">每日提醒</span>
+                                <span style="color: #666; display: block; margin-top: 5px;">每天提醒学习单词</span>
+                            </label>
+                        </div>
+                        
+                        <div style="margin: 25px 0;">
+                            <label style="display: block; margin-bottom: 10px; font-weight: bold;">每轮训练单词数量</label>
+                            <select id="words-per-session" style="padding: 12px; width: 100%; border-radius: 8px; border: 2px solid #ddd;">
+                                <option value="10">10个单词</option>
+                                <option value="20" selected>20个单词</option>
+                                <option value="30">30个单词</option>
+                                <option value="50">50个单词</option>
+                                <option value="100">100个单词</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="stats-card">
-                    <h3>联系信息</h3>
-                    <div class="wechat-contact" style="margin: 15px 0;">
-                        💬 微信：<strong>Kathy151</strong>
+                    
+                    <div class="stats-card">
+                        <h3 style="color: #333; margin-bottom: 20px;">📞 联系信息</h3>
+                        
+                        <div style="text-align: center; margin: 25px 0;">
+                            <div class="wechat-badge" style="margin: 0 auto 20px;">
+                                <span>微信联系：</span>
+                                <strong>Kathy151</strong>
+                            </div>
+                            
+                            <p style="color: #666; margin-bottom: 15px;">
+                                <strong>👩‍🏫 教师：</strong>Kathy老师
+                            </p>
+                            <p style="color: #666;">
+                                如有任何问题或需要帮助，请随时联系老师。
+                            </p>
+                        </div>
                     </div>
-                    <p style="color: #666;">如有问题请联系老师</p>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-blue" onclick="saveSettings()">保存设置</button>
-                    <button class="btn btn-red" onclick="showMenu()">返回</button>
+                    
+                    <div style="text-align: center; margin-top: 40px;">
+                        <button class="btn btn-blue" onclick="saveSettings()">
+                            <span>💾 保存设置</span>
+                        </button>
+                        <button class="btn btn-red" onclick="showMenu()">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ========== 全局变量 ==========
-        const SUPABASE_CONFIG = {
-            url: 'https://lctdyhtydcqhloibogyj.supabase.co',
-            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM'
+        // ========== 全局变量和配置 ==========
+        const CONFIG = {
+            supabaseUrl: 'https://lctdyhtydcqhloibogyj.supabase.co',
+            supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM',
+            teacherUsername: 'kathy151'
         };
         
-        const TEACHER_USERNAME = 'kathy151';
-        
-        let supabase = null;
-        let currentUser = null;
-        let isTeacher = false;
-        let myWords = [];
-        let trainingWords = [];
-        let currentWordIndex = 0;
-        let trainingMode = 'en_to_cn'; // en_to_cn 或 cn_to_en
-        let cardFlipped = false;
-        
-        // ========== 初始化 ==========
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                // 初始化Supabase
-                supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
-                console.log('✅ Supabase初始化成功');
-                
-                // 检查本地保存的用户
-                const savedUser = localStorage.getItem('word_trainer_user');
-                if (savedUser) {
-                    currentUser = savedUser;
-                    isTeacher = (currentUser === TEACHER_USERNAME);
-                    
-                    if (isTeacher) {
-                        showMenu();
-                    } else {
-                        await loadUserData();
-                        showMenu();
-                    }
-                }
-            } catch (error) {
-                console.error('初始化失败:', error);
-                showMessage('login-status', '❌ 初始化失败，请刷新页面');
+        // 应用状态
+        let appState = {
+            currentUser: null,
+            isTeacher: false,
+            userWords: [],
+            trainingWords: [],
+            currentWordIndex: 0,
+            trainingMode: 'en_to_cn', // en_to_cn 或 cn_to_en
+            cardFlipped: false,
+            trainingStats: {
+                remembered: 0,
+                fuzzy: 0,
+                forgot: 0
             }
-        });
+        };
         
-        // ========== 页面切换函数 ==========
+        // 初始化Supabase
+        let supabase = null;
+        
+        // ========== 工具函数 ==========
+        function showAlert(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `alert alert-${type}`;
+                element.innerHTML = message;
+                element.style.display = 'block';
+                
+                if (type !== 'error') {
+                    setTimeout(() => {
+                        element.style.display = 'none';
+                    }, 3000);
+                }
+            }
+        }
+        
         function showScreen(screenId) {
-            // 隐藏所有页面
+            // 隐藏所有界面
             document.querySelectorAll('.screen').forEach(screen => {
                 screen.classList.remove('active');
             });
             
-            // 显示目标页面
-            const target = document.getElementById(screenId);
-            if (target) {
-                target.classList.add('active');
+            // 显示目标界面
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+                console.log(`切换到界面: ${screenId}`);
                 
-                // 页面特定初始化
-                if (screenId === 'menu-screen') {
-                    updateMenu();
-                } else if (screenId === 'words-screen') {
-                    showWordsList();
-                } else if (screenId === 'stats-screen' && isTeacher) {
-                    loadAllStudents();
+                // 界面特定初始化
+                switch(screenId) {
+                    case 'menu-screen':
+                        updateMenu();
+                        break;
+                    case 'words-screen':
+                        loadWordsList();
+                        break;
+                    case 'train-screen':
+                        updateTrainingStats();
+                        break;
                 }
             }
         }
@@ -425,244 +882,85 @@
             showScreen('login-screen');
         }
         
-        // ========== 用户相关函数 ==========
+        // ========== 用户认证功能 ==========
         async function login() {
             const username = document.getElementById('username').value.trim();
             
             if (!username) {
-                alert('请输入用户名');
+                showAlert('login-status', '请输入用户名', 'error');
                 return;
             }
             
-            showMessage('login-status', '🔄 正在登录...');
+            showAlert('login-status', '🔄 正在登录...', 'info');
             
             try {
-                currentUser = username;
-                isTeacher = (username === TEACHER_USERNAME);
+                appState.currentUser = username;
+                appState.isTeacher = (username === CONFIG.teacherUsername);
                 
-                if (isTeacher) {
+                if (appState.isTeacher) {
                     // 教师登录
                     localStorage.setItem('word_trainer_user', username);
+                    showAlert('login-status', '✅ 教师登录成功！', 'success');
                     showMenu();
-                    showMessage('login-status', '✅ 教师登录成功');
                 } else {
                     // 学生登录
-                    const { data, error } = await supabase
-                        .from('users')
-                        .select('username')
-                        .eq('username', username)
-                        .single();
-                    
-                    if (error || !data) {
-                        // 用户不存在，询问是否创建
-                        if (confirm(`用户"${username}"不存在，是否创建新用户？`)) {
-                            await createUser();
-                            return;
-                        } else {
-                            currentUser = null;
-                            showMessage('login-status', '❌ 用户不存在');
-                            return;
-                        }
+                    // 尝试从本地存储加载数据
+                    const savedData = localStorage.getItem(`user_words_${username}`);
+                    if (savedData) {
+                        appState.userWords = JSON.parse(savedData);
                     }
                     
-                    // 登录成功
                     localStorage.setItem('word_trainer_user', username);
-                    await loadUserData();
+                    showAlert('login-status', '✅ 登录成功！', 'success');
                     showMenu();
-                    showMessage('login-status', '✅ 登录成功');
                 }
+                
             } catch (error) {
                 console.error('登录失败:', error);
-                showMessage('login-status', '❌ 登录失败: ' + error.message);
+                showAlert('login-status', `❌ 登录失败: ${error.message}`, 'error');
             }
         }
         
-        async function createUser() {
+        async function register() {
             const username = document.getElementById('username').value.trim();
             
             if (!username) {
-                alert('请输入用户名');
+                showAlert('login-status', '请输入用户名', 'error');
                 return;
             }
             
             if (username.length < 2) {
-                alert('用户名至少需要2个字符');
+                showAlert('login-status', '用户名至少需要2个字符', 'error');
                 return;
             }
             
-            if (username.toLowerCase() === TEACHER_USERNAME.toLowerCase()) {
-                alert('该用户名不可用');
+            if (username.toLowerCase() === CONFIG.teacherUsername.toLowerCase()) {
+                showAlert('login-status', '该用户名不可用', 'error');
                 return;
             }
             
-            showMessage('login-status', '🔄 正在创建用户...');
+            showAlert('login-status', '🔄 正在创建用户...', 'info');
             
             try {
-                // 检查是否已存在
-                const { data: existing } = await supabase
-                    .from('users')
-                    .select('username')
-                    .eq('username', username)
-                    .single();
+                appState.currentUser = username;
+                appState.isTeacher = false;
+                appState.userWords = [];
                 
-                if (existing) {
-                    alert('用户名已存在，请直接登录');
-                    showMessage('login-status', '❌ 用户名已存在');
-                    return;
-                }
-                
-                // 创建用户
-                const newUser = {
-                    username: username,
-                    created_at: new Date().toISOString(),
-                    total_words: 0,
-                    learned_words: 0,
-                    reviewing_words: 0,
-                    new_words: 0,
-                    last_login: new Date().toISOString()
-                };
-                
-                const { error } = await supabase
-                    .from('users')
-                    .insert([newUser]);
-                
-                if (error) throw error;
-                
-                // 初始化单词数据
-                try {
-                    await supabase
-                        .from('user_words')
-                        .insert([{
-                            username: username,
-                            words: [],
-                            updated_at: new Date().toISOString()
-                        }]);
-                } catch (wordsError) {
-                    console.log('初始化单词表可能不存在:', wordsError);
-                }
-                
-                // 登录新用户
-                currentUser = username;
-                isTeacher = false;
+                // 保存到本地存储
                 localStorage.setItem('word_trainer_user', username);
+                localStorage.setItem(`user_words_${username}`, JSON.stringify([]));
                 
-                alert(`✅ 欢迎 ${username} 加入Kathy单词大师训练营！`);
-                showMenu();
-                showMessage('login-status', '✅ 用户创建成功');
+                showAlert('login-status', '✅ 注册成功！', 'success');
                 
-            } catch (error) {
-                console.error('创建用户失败:', error);
-                showMessage('login-status', '❌ 创建失败: ' + error.message);
-                
-                // 如果表不存在，提示创建表
-                if (error.code === '42P01') {
-                    if (confirm('数据库表不存在，是否尝试创建表？')) {
-                        await createDatabaseTables();
-                    }
-                }
-            }
-        }
-        
-        async function createDatabaseTables() {
-            const sql = `
--- 1. 创建users表
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    total_words INTEGER DEFAULT 0,
-    learned_words INTEGER DEFAULT 0,
-    reviewing_words INTEGER DEFAULT 0,
-    new_words INTEGER DEFAULT 0,
-    last_login TIMESTAMP
-);
-
--- 2. 创建user_words表
-CREATE TABLE IF NOT EXISTS user_words (
-    id SERIAL PRIMARY KEY,
-    username TEXT NOT NULL,
-    words JSONB DEFAULT '[]',
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- 3. 启用行级安全
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
-
--- 4. 创建访问策略
-CREATE POLICY "允许所有人访问users表" ON users
-    FOR ALL USING (true);
-
-CREATE POLICY "允许所有人访问user_words表" ON user_words
-    FOR ALL USING (true);
-            `;
-            
-            alert(`请登录Supabase，在SQL编辑器中执行以下语句：
-
-${sql}
-
-执行后刷新页面即可使用。`);
-        }
-        
-        async function loadUserData() {
-            if (!currentUser || isTeacher) return;
-            
-            try {
-                // 加载单词数据
-                const { data, error } = await supabase
-                    .from('user_words')
-                    .select('words')
-                    .eq('username', currentUser)
-                    .single();
-                
-                if (error) {
-                    console.log('加载单词数据失败，可能表不存在:', error);
-                    myWords = [];
-                } else {
-                    myWords = data?.words || [];
-                }
-                
-                // 更新最后登录时间
-                await supabase
-                    .from('users')
-                    .update({ last_login: new Date().toISOString() })
-                    .eq('username', currentUser);
+                // 显示欢迎信息
+                setTimeout(() => {
+                    alert(`🎉 欢迎 ${username} 加入Kathy单词大师训练营！\n\n开始你的单词学习之旅吧！`);
+                    showMenu();
+                }, 500);
                 
             } catch (error) {
-                console.error('加载用户数据失败:', error);
-                myWords = [];
-            }
-        }
-        
-        async function saveUserData() {
-            if (!currentUser || isTeacher) return;
-            
-            try {
-                const { error } = await supabase
-                    .from('user_words')
-                    .upsert([{
-                        username: currentUser,
-                        words: myWords,
-                        updated_at: new Date().toISOString()
-                    }]);
-                
-                if (error) throw error;
-                
-                // 更新统计信息
-                const stats = {
-                    total_words: myWords.length,
-                    learned_words: myWords.filter(w => w.status === 'remembered').length,
-                    reviewing_words: myWords.filter(w => w.status === 'fuzzy').length,
-                    new_words: myWords.filter(w => !w.status || w.status === 'forgot').length
-                };
-                
-                await supabase
-                    .from('users')
-                    .update(stats)
-                    .eq('username', currentUser);
-                
-            } catch (error) {
-                console.error('保存数据失败:', error);
+                console.error('注册失败:', error);
+                showAlert('login-status', `❌ 注册失败: ${error.message}`, 'error');
             }
         }
         
@@ -670,197 +968,292 @@ ${sql}
             const welcomeMsg = document.getElementById('welcome-message');
             const teacherPanel = document.getElementById('teacher-panel');
             const studentPanel = document.getElementById('student-panel');
-            const statsDiv = document.getElementById('user-stats');
+            const learningStats = document.getElementById('learning-stats');
             
-            if (isTeacher) {
+            if (appState.isTeacher) {
                 welcomeMsg.textContent = `👑 欢迎，Kathy老师！`;
                 teacherPanel.style.display = 'block';
                 studentPanel.style.display = 'none';
             } else {
-                welcomeMsg.textContent = `🎓 欢迎，${currentUser}！`;
+                welcomeMsg.textContent = `🎓 欢迎，${appState.currentUser}！`;
                 teacherPanel.style.display = 'none';
                 studentPanel.style.display = 'block';
                 
-                // 更新学生统计
-                const total = myWords.length;
-                const remembered = myWords.filter(w => w.status === 'remembered').length;
-                const fuzzy = myWords.filter(w => w.status === 'fuzzy').length;
-                const progress = total > 0 ? Math.round((remembered / total) * 100) : 0;
-                
-                statsDiv.innerHTML = `
-                    <div style="display: flex; justify-content: space-around; margin: 15px 0;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5em; color: #2196F3;">${total}</div>
-                            <div style="font-size: 0.8em;">单词总数</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5em; color: #4CAF50;">${remembered}</div>
-                            <div style="font-size: 0.8em;">已掌握</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5em; color: #FF9800;">${progress}%</div>
-                            <div style="font-size: 0.8em;">掌握进度</div>
-                        </div>
-                    </div>
-                `;
+                // 更新学习统计
+                updateLearningStats(learningStats);
             }
+        }
+        
+        function updateLearningStats(element) {
+            if (!element) return;
+            
+            const totalWords = appState.userWords.length;
+            const remembered = appState.userWords.filter(w => w.status === 'remembered').length;
+            const fuzzy = appState.userWords.filter(w => w.status === 'fuzzy').length;
+            const forgot = appState.userWords.filter(w => w.status === 'forgot' || !w.status).length;
+            const progress = totalWords > 0 ? Math.round((remembered / totalWords) * 100) : 0;
+            
+            element.innerHTML = `
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin: 20px 0;">
+                    <div style="text-align: center; margin: 10px;">
+                        <div style="font-size: 2em; color: #2196F3; font-weight: bold;">${totalWords}</div>
+                        <div style="color: #666; font-size: 0.9em;">单词总数</div>
+                    </div>
+                    <div style="text-align: center; margin: 10px;">
+                        <div style="font-size: 2em; color: #4CAF50; font-weight: bold;">${remembered}</div>
+                        <div style="color: #666; font-size: 0.9em;">已掌握</div>
+                    </div>
+                    <div style="text-align: center; margin: 10px;">
+                        <div style="font-size: 2em; color: #FF9800; font-weight: bold;">${fuzzy}</div>
+                        <div style="color: #666; font-size: 0.9em;">学习中</div>
+                    </div>
+                    <div style="text-align: center; margin: 10px;">
+                        <div style="font-size: 2em; color: #F44336; font-weight: bold;">${forgot}</div>
+                        <div style="color: #666; font-size: 0.9em;">需复习</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">掌握进度</span>
+                        <span style="color: #4CAF50; font-weight: bold;">${progress}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+            `;
         }
         
         // ========== 单词训练功能 ==========
         function startTraining() {
-            if (myWords.length === 0) {
-                alert('请先添加单词');
+            if (appState.userWords.length === 0) {
+                alert('请先添加单词，然后开始训练');
                 return;
             }
             
-            trainingWords = [...myWords];
-            if (trainingWords.length === 0) {
-                alert('没有可训练的单词');
-                return;
-            }
+            // 准备训练单词
+            appState.trainingWords = [...appState.userWords];
             
-            // 随机排序
-            trainingWords.sort(() => Math.random() - 0.5);
-            currentWordIndex = 0;
-            trainingMode = 'en_to_cn';
-            cardFlipped = false;
+            // 优先训练不熟悉的单词
+            appState.trainingWords.sort((a, b) => {
+                const statusOrder = { 'forgot': 0, '': 1, 'fuzzy': 2, 'remembered': 3 };
+                return statusOrder[a.status || ''] - statusOrder[b.status || ''];
+            });
+            
+            appState.currentWordIndex = 0;
+            appState.trainingMode = 'en_to_cn';
+            appState.cardFlipped = false;
+            appState.trainingStats = { remembered: 0, fuzzy: 0, forgot: 0 };
             
             showScreen('train-screen');
             showCurrentWord();
         }
         
         function showCurrentWord() {
-            if (currentWordIndex >= trainingWords.length) {
+            if (appState.currentWordIndex >= appState.trainingWords.length) {
                 // 训练完成
-                document.getElementById('card-front').textContent = '🎉 训练完成！';
-                document.getElementById('card-back').style.display = 'none';
-                document.getElementById('word-card').classList.remove('flipped');
-                document.getElementById('progress-text').textContent = '训练完成！';
-                document.getElementById('train-progress').style.width = '100%';
+                endTraining();
                 return;
             }
             
-            const word = trainingWords[currentWordIndex];
+            const word = appState.trainingWords[appState.currentWordIndex];
             const cardFront = document.getElementById('card-front');
             const cardBack = document.getElementById('card-back');
             const wordCard = document.getElementById('word-card');
             
             // 重置卡片状态
             wordCard.classList.remove('flipped');
-            cardFlipped = false;
+            appState.cardFlipped = false;
             cardBack.style.display = 'none';
             
-            // 根据模式显示
-            if (trainingMode === 'en_to_cn') {
+            // 根据训练模式显示内容
+            if (appState.trainingMode === 'en_to_cn') {
                 cardFront.textContent = word.english;
                 cardBack.textContent = word.chinese;
-                document.getElementById('train-mode').textContent = '英文 → 中文';
-                document.getElementById('word-hint').textContent = '点击卡片查看中文意思';
+                document.getElementById('mode-text').textContent = '英文 → 中文';
             } else {
                 cardFront.textContent = word.chinese;
                 cardBack.textContent = word.english;
-                document.getElementById('train-mode').textContent = '中文 → 英文';
-                document.getElementById('word-hint').textContent = '点击卡片查看英文单词';
+                document.getElementById('mode-text').textContent = '中文 → 英文';
             }
             
             // 更新进度
-            const progress = ((currentWordIndex + 1) / trainingWords.length) * 100;
+            const progress = ((appState.currentWordIndex + 1) / appState.trainingWords.length) * 100;
             document.getElementById('progress-text').textContent = 
-                `进度: ${currentWordIndex + 1}/${trainingWords.length}`;
+                `进度: ${appState.currentWordIndex + 1}/${appState.trainingWords.length}`;
             document.getElementById('train-progress').style.width = `${progress}%`;
+            
+            // 显示训练统计
+            updateTrainingStats();
         }
         
         function flipCard() {
-            if (currentWordIndex >= trainingWords.length) return;
+            if (appState.currentWordIndex >= appState.trainingWords.length) return;
             
             const cardBack = document.getElementById('card-back');
             const wordCard = document.getElementById('word-card');
             
-            if (!cardFlipped) {
+            if (!appState.cardFlipped) {
                 cardBack.style.display = 'block';
                 wordCard.classList.add('flipped');
-                cardFlipped = true;
+                appState.cardFlipped = true;
             } else {
                 cardBack.style.display = 'none';
                 wordCard.classList.remove('flipped');
-                cardFlipped = false;
+                appState.cardFlipped = false;
             }
         }
         
-        function toggleMode() {
-            trainingMode = trainingMode === 'en_to_cn' ? 'cn_to_en' : 'en_to_cn';
-            cardFlipped = false;
+        function toggleTrainingMode() {
+            appState.trainingMode = appState.trainingMode === 'en_to_cn' ? 'cn_to_en' : 'en_to_cn';
+            appState.cardFlipped = false;
             showCurrentWord();
         }
         
-        async function markWord(status) {
-            if (currentWordIndex >= trainingWords.length) return;
+        function shuffleWords() {
+            // 随机打乱剩余单词
+            const remainingWords = appState.trainingWords.slice(appState.currentWordIndex);
+            for (let i = remainingWords.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [remainingWords[i], remainingWords[j]] = [remainingWords[j], remainingWords[i]];
+            }
             
-            const word = trainingWords[currentWordIndex];
+            appState.trainingWords = [
+                ...appState.trainingWords.slice(0, appState.currentWordIndex),
+                ...remainingWords
+            ];
+            
+            showCurrentWord();
+            showAlert('menu-feedback', '🎲 单词顺序已重新打乱', 'success');
+        }
+        
+        function markWord(status) {
+            if (appState.currentWordIndex >= appState.trainingWords.length) return;
+            
+            const word = appState.trainingWords[appState.currentWordIndex];
+            
+            // 更新单词状态
             word.status = status;
             word.reviewCount = (word.reviewCount || 0) + 1;
             word.lastReview = new Date().toISOString();
             
+            // 更新统计
+            appState.trainingStats[status]++;
+            
             // 更新原始数据
-            const index = myWords.findIndex(w => w.english === word.english);
+            const index = appState.userWords.findIndex(w => w.english === word.english);
             if (index !== -1) {
-                myWords[index] = word;
+                appState.userWords[index] = word;
             }
             
-            // 保存到数据库
-            await saveUserData();
+            // 保存到本地存储
+            saveUserData();
             
             // 下一个单词
-            currentWordIndex++;
-            cardFlipped = false;
+            appState.currentWordIndex++;
+            appState.cardFlipped = false;
+            
+            // 短暂延迟后显示下一个单词
             setTimeout(showCurrentWord, 300);
         }
         
-        function nextWord() {
-            currentWordIndex++;
-            cardFlipped = false;
+        function skipWord() {
+            appState.currentWordIndex++;
+            appState.cardFlipped = false;
             showCurrentWord();
         }
         
-        // ========== 批量添加单词 ==========
-        function showBatchAdd() {
-            document.getElementById('batch-input').value = '';
-            document.getElementById('batch-result').style.display = 'none';
-            showScreen('batch-screen');
+        function updateTrainingStats() {
+            const statsDiv = document.getElementById('train-stats');
+            if (statsDiv) {
+                statsDiv.style.display = 'block';
+                document.getElementById('stats-remembered').textContent = appState.trainingStats.remembered;
+                document.getElementById('stats-fuzzy').textContent = appState.trainingStats.fuzzy;
+                document.getElementById('stats-forgot').textContent = appState.trainingStats.forgot;
+                document.getElementById('stats-total').textContent = appState.trainingWords.length;
+            }
+        }
+        
+        function endTraining() {
+            const remembered = appState.trainingStats.remembered;
+            const total = appState.trainingWords.length;
+            const score = total > 0 ? Math.round((remembered / total) * 100) : 0;
+            
+            let message = `🎉 训练完成！\n\n`;
+            message += `📊 训练统计：\n`;
+            message += `✅ 记得：${appState.trainingStats.remembered}\n`;
+            message += `🔄 模糊：${appState.trainingStats.fuzzy}\n`;
+            message += `❌ 忘记：${appState.trainingStats.forgot}\n`;
+            message += `📈 掌握率：${score}%\n\n`;
+            
+            if (score >= 80) {
+                message += `🌟 太棒了！继续保持！`;
+            } else if (score >= 60) {
+                message += `💪 还不错，继续加油！`;
+            } else {
+                message += `📚 需要多复习，继续努力！`;
+            }
+            
+            alert(message);
+            showMenu();
+        }
+        
+        // ========== 单词管理功能 ==========
+        function showAddWords() {
+            updateWordCount();
+            showScreen('add-screen');
         }
         
         function pasteFromClipboard() {
             if (navigator.clipboard) {
                 navigator.clipboard.readText()
                     .then(text => {
-                        document.getElementById('batch-input').value = text;
+                        document.getElementById('word-input').value = text;
                     })
-                    .catch(() => {
-                        alert('无法访问剪贴板');
+                    .catch(err => {
+                        alert('无法访问剪贴板，请手动粘贴');
                     });
             } else {
                 alert('浏览器不支持剪贴板访问');
             }
         }
         
-        async function addBatchWords() {
-            const input = document.getElementById('batch-input').value.trim();
+        function loadExampleWords() {
+            const examples = `hello 你好
+world 世界
+apple 苹果
+book 书
+computer 电脑
+water 水
+friend 朋友
+school 学校
+teacher 老师
+student 学生`;
+            
+            document.getElementById('word-input').value = examples;
+            showAlert('import-result', '📚 已加载示例单词', 'success');
+        }
+        
+        function importWords() {
+            const input = document.getElementById('word-input').value.trim();
+            
             if (!input) {
-                alert('请输入单词');
+                showAlert('import-result', '请输入单词', 'error');
                 return;
             }
             
             const lines = input.split('\n');
             let added = 0;
+            let duplicates = 0;
             let errors = [];
             
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
                 
-                // 解析单词
+                // 解析单词（支持多种分隔符）
                 let english = '', chinese = '';
-                const separators = [' ', ':', '=', ',', '\t'];
+                const separators = [' ', ':', '=', ',', '：', '，'];
                 
                 for (const sep of separators) {
                     if (trimmed.includes(sep)) {
@@ -873,8 +1266,8 @@ ${sql}
                     }
                 }
                 
-                // 如果没有分隔符，尝试按空格分割
-                if (!english || !chinese) {
+                // 如果没有找到分隔符，尝试按空格分割
+                if (!english && !chinese) {
                     const parts = trimmed.split(/\s+/);
                     if (parts.length >= 2) {
                         english = parts[0];
@@ -884,301 +1277,353 @@ ${sql}
                 
                 if (english && chinese) {
                     // 检查是否重复
-                    const exists = myWords.some(w => 
+                    const exists = appState.userWords.some(w => 
                         w.english.toLowerCase() === english.toLowerCase());
                     
                     if (!exists) {
-                        myWords.push({
+                        appState.userWords.push({
                             english: english,
                             chinese: chinese,
-                            status: 'forgot',
+                            status: '',
                             reviewCount: 0,
-                            lastReview: null,
                             addedDate: new Date().toISOString()
                         });
                         added++;
+                    } else {
+                        duplicates++;
                     }
                 } else {
                     errors.push(trimmed);
                 }
             }
             
-            // 保存到数据库
-            await saveUserData();
+            // 保存数据
+            saveUserData();
             
             // 显示结果
-            const resultDiv = document.getElementById('batch-result');
-            resultDiv.innerHTML = `
-                <h4>📥 导入结果</h4>
-                <p>✅ 成功添加: ${added} 个新单词</p>
-                ${errors.length > 0 ? `<p>❌ 格式错误: ${errors.length} 行</p>` : ''}
-                <p>📊 当前单词总数: ${myWords.length}</p>
-                ${added > 0 ? '<p>💡 现在可以开始训练了！</p>' : ''}
-            `;
-            resultDiv.style.display = 'block';
+            const resultDiv = document.getElementById('import-result');
+            let resultHTML = `<h4>📥 导入结果</h4>`;
+            resultHTML += `<p>✅ 成功添加: <strong>${added}</strong> 个新单词</p>`;
+            
+            if (duplicates > 0) {
+                resultHTML += `<p>⚠️ 跳过重复: <strong>${duplicates}</strong> 个单词</p>`;
+            }
+            
+            if (errors.length > 0) {
+                resultHTML += `<p>❌ 格式错误: <strong>${errors.length}</strong> 行</p>`;
+            }
+            
+            resultHTML += `<p>📊 当前单词总数: <strong>${appState.userWords.length}</strong></p>`;
             
             if (added > 0) {
-                updateMenu();
-                document.getElementById('batch-input').value = '';
+                resultHTML += `<p>💡 现在可以开始训练了！</p>`;
             }
+            
+            resultDiv.innerHTML = resultHTML;
+            resultDiv.style.display = 'block';
+            
+            // 更新统计
+            updateWordCount();
+            
+            // 清空输入框（如果添加成功）
+            if (added > 0) {
+                document.getElementById('word-input').value = '';
+            }
+        }
+        
+        function updateWordCount() {
+            document.getElementById('total-words').textContent = appState.userWords.length;
+            document.getElementById('new-words').textContent = appState.userWords.filter(w => !w.status).length;
         }
         
         // ========== 单词库管理 ==========
-        async function showMyWords() {
-            await loadUserData();
+        function showMyWords() {
             showScreen('words-screen');
         }
         
-        function showWordsList() {
-            const wordsList = document.getElementById('words-list');
+        function loadWordsList() {
+            const container = document.getElementById('words-list-container');
             
-            if (myWords.length === 0) {
-                wordsList.innerHTML = '<p>还没有添加单词，快去批量添加吧！</p>';
+            if (appState.userWords.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 3em; margin-bottom: 20px;">📚</div>
+                        <h3 style="color: #666; margin-bottom: 15px;">还没有单词</h3>
+                        <p style="color: #999; margin-bottom: 25px;">快去添加一些单词开始学习吧！</p>
+                        <button class="btn btn-blue" onclick="showAddWords()">
+                            <span>📝 去添加单词</span>
+                        </button>
+                    </div>
+                `;
                 return;
             }
             
+            // 应用筛选
+            const searchTerm = document.getElementById('word-search')?.value.toLowerCase() || '';
+            const filterType = document.getElementById('word-filter')?.value || 'all';
+            
+            let filteredWords = appState.userWords.filter(word => {
+                // 搜索筛选
+                const matchesSearch = word.english.toLowerCase().includes(searchTerm) || 
+                                     word.chinese.toLowerCase().includes(searchTerm);
+                
+                // 状态筛选
+                let matchesFilter = true;
+                switch(filterType) {
+                    case 'remembered':
+                        matchesFilter = word.status === 'remembered';
+                        break;
+                    case 'fuzzy':
+                        matchesFilter = word.status === 'fuzzy';
+                        break;
+                    case 'forgot':
+                        matchesFilter = word.status === 'forgot';
+                        break;
+                    case 'new':
+                        matchesFilter = !word.status;
+                        break;
+                }
+                
+                return matchesSearch && matchesFilter;
+            });
+            
+            // 更新计数
+            document.getElementById('filtered-count').textContent = filteredWords.length;
+            
+            // 生成表格
             let html = `
-                <p>📚 共 ${myWords.length} 个单词</p>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>英文</th>
-                            <th>中文</th>
-                            <th>状态</th>
-                            <th>复习次数</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">英文</th>
+                                <th style="width: 25%;">中文</th>
+                                <th style="width: 15%;">状态</th>
+                                <th style="width: 15%;">复习次数</th>
+                                <th style="width: 20%;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
             
-            myWords.forEach((word, index) => {
-                const statusText = {
-                    'remembered': '<span style="color:#4CAF50">✅ 记得</span>',
-                    'fuzzy': '<span style="color:#FF9800">🔄 模糊</span>',
-                    'forgot': '<span style="color:#F44336">❌ 忘记</span>'
-                }[word.status] || '<span style="color:#666">未学习</span>';
+            filteredWords.forEach((word, index) => {
+                // 获取状态显示
+                let statusText, statusClass;
+                switch(word.status) {
+                    case 'remembered':
+                        statusText = '✅ 记得';
+                        statusClass = 'status-remembered';
+                        break;
+                    case 'fuzzy':
+                        statusText = '🔄 模糊';
+                        statusClass = 'status-fuzzy';
+                        break;
+                    case 'forgot':
+                        statusText = '❌ 忘记';
+                        statusClass = 'status-forgot';
+                        break;
+                    default:
+                        statusText = '📝 未学习';
+                        statusClass = 'status-forgot';
+                }
                 
                 html += `
                     <tr>
                         <td><strong>${word.english}</strong></td>
                         <td>${word.chinese}</td>
-                        <td>${statusText}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td>${word.reviewCount || 0}</td>
                         <td>
-                            <button class="btn" style="padding:5px 10px; font-size:0.8em;" 
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85em; margin: 2px;" 
+                                    onclick="editWord(${index})">编辑</button>
+                            <button class="btn btn-red" style="padding: 6px 12px; font-size: 0.85em; margin: 2px;" 
                                     onclick="deleteWord(${index})">删除</button>
                         </td>
                     </tr>
                 `;
             });
             
-            html += '</tbody></table>';
-            wordsList.innerHTML = html;
-        }
-        
-        async function deleteWord(index) {
-            if (confirm('确定要删除这个单词吗？')) {
-                myWords.splice(index, 1);
-                await saveUserData();
-                showWordsList();
-            }
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
         }
         
         function filterWords() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const rows = document.querySelectorAll('#words-list tbody tr');
+            loadWordsList();
+        }
+        
+        function editWord(index) {
+            const word = appState.userWords[index];
+            const newEnglish = prompt('修改英文单词：', word.english);
+            if (newEnglish && newEnglish.trim()) {
+                const newChinese = prompt('修改中文意思：', word.chinese);
+                if (newChinese && newChinese.trim()) {
+                    word.english = newEnglish.trim();
+                    word.chinese = newChinese.trim();
+                    saveUserData();
+                    loadWordsList();
+                    showAlert('menu-feedback', '✅ 单词修改成功', 'success');
+                }
+            }
+        }
+        
+        function deleteWord(index) {
+            if (confirm('确定要删除这个单词吗？')) {
+                appState.userWords.splice(index, 1);
+                saveUserData();
+                loadWordsList();
+                showAlert('menu-feedback', '🗑️ 单词删除成功', 'success');
+            }
+        }
+        
+        function exportWords() {
+            const exportText = appState.userWords.map(word => 
+                `${word.english} ${word.chinese}`
+            ).join('\n');
             
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
-            });
+            // 创建下载链接
+            const blob = new Blob([exportText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kathy_words_${appState.currentUser}_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('menu-feedback', '📤 单词导出成功', 'success');
+        }
+        
+        // ========== 复习功能 ==========
+        function showReviewWords() {
+            // 获取需要复习的单词（忘记的或模糊的）
+            const reviewWords = appState.userWords.filter(word => 
+                word.status === 'forgot' || word.status === 'fuzzy' || !word.status
+            );
+            
+            if (reviewWords.length === 0) {
+                alert('🎉 太棒了！没有需要复习的单词。');
+                return;
+            }
+            
+            appState.trainingWords = reviewWords;
+            appState.currentWordIndex = 0;
+            appState.trainingMode = 'en_to_cn';
+            appState.cardFlipped = false;
+            appState.trainingStats = { remembered: 0, fuzzy: 0, forgot: 0 };
+            
+            showScreen('train-screen');
+            showCurrentWord();
+            
+            showAlert('menu-feedback', `📚 开始复习 ${reviewWords.length} 个弱项单词`, 'success');
         }
         
         // ========== 教师功能 ==========
-        async function showStudentStats() {
-            if (!isTeacher) return;
-            showScreen('stats-screen');
+        function showStudentStats() {
+            alert('👑 教师功能：查看学生学习情况\n\n此功能需要连接数据库，当前为演示版本。');
         }
         
-        async function loadAllStudents() {
-            if (!isTeacher) return;
-            
-            try {
-                const { data: students, error } = await supabase
-                    .from('users')
-                    .select('*')
-                    .neq('username', TEACHER_USERNAME)
-                    .order('last_login', { ascending: false });
-                
-                if (error) throw error;
-                
-                const studentsDiv = document.getElementById('students-data');
-                
-                if (!students || students.length === 0) {
-                    studentsDiv.innerHTML = '<p>还没有学生注册</p>';
-                    return;
-                }
-                
-                let html = '<table class="data-table">';
-                html += `
-                    <thead>
-                        <tr>
-                            <th>学生</th>
-                            <th>单词数</th>
-                            <th>已掌握</th>
-                            <th>学习中</th>
-                            <th>未掌握</th>
-                            <th>最后登录</th>
-                            <th>详情</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                `;
-                
-                for (const student of students) {
-                    // 获取学生的单词数据
-                    let wordCount = 0;
-                    try {
-                        const { data: wordData } = await supabase
-                            .from('user_words')
-                            .select('words')
-                            .eq('username', student.username)
-                            .single();
-                        
-                        if (wordData && wordData.words) {
-                            const words = wordData.words;
-                            wordCount = words.length;
-                            const remembered = words.filter(w => w.status === 'remembered').length;
-                            const fuzzy = words.filter(w => w.status === 'fuzzy').length;
-                            const forgot = words.filter(w => !w.status || w.status === 'forgot').length;
-                            
-                            html += `
-                                <tr>
-                                    <td><strong>${student.username}</strong></td>
-                                    <td>${wordCount}</td>
-                                    <td style="color:#4CAF50">${remembered}</td>
-                                    <td style="color:#FF9800">${fuzzy}</td>
-                                    <td style="color:#F44336">${forgot}</td>
-                                    <td>${student.last_login ? new Date(student.last_login).toLocaleDateString() : '从未'}</td>
-                                    <td>
-                                        <button class="btn" style="padding:5px 10px; font-size:0.8em;"
-                                                onclick="viewStudentDetail('${student.username}')">查看</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }
-                    } catch (e) {
-                        console.log(`获取学生${student.username}数据失败:`, e);
-                    }
-                }
-                
-                html += '</tbody></table>';
-                studentsDiv.innerHTML = html;
-                
-            } catch (error) {
-                console.error('加载学生数据失败:', error);
-                document.getElementById('students-data').innerHTML = 
-                    `<p style="color:red">加载失败: ${error.message}</p>`;
-            }
+        function showAllStudents() {
+            alert('👑 教师功能：管理学生\n\n此功能需要连接数据库，当前为演示版本。');
         }
         
-        async function viewStudentDetail(username) {
-            try {
-                const { data } = await supabase
-                    .from('user_words')
-                    .select('words')
-                    .eq('username', username)
-                    .single();
-                
-                const words = data?.words || [];
-                
-                let detailHtml = `<h3>${username} 的单词详情（${words.length}个）</h3>`;
-                
-                if (words.length > 0) {
-                    detailHtml += '<div style="max-height: 300px; overflow-y: auto;">';
-                    detailHtml += '<table class="data-table">';
-                    detailHtml += `
-                        <thead>
-                            <tr>
-                                <th>英文</th>
-                                <th>中文</th>
-                                <th>状态</th>
-                                <th>复习次数</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                    `;
-                    
-                    words.forEach(word => {
-                        const statusText = {
-                            'remembered': '<span style="color:#4CAF50">✅ 记得</span>',
-                            'fuzzy': '<span style="color:#FF9800">🔄 模糊</span>',
-                            'forgot': '<span style="color:#F44336">❌ 忘记</span>'
-                        }[word.status] || '<span style="color:#666">未学习</span>';
-                        
-                        detailHtml += `
-                            <tr>
-                                <td>${word.english}</td>
-                                <td>${word.chinese}</td>
-                                <td>${statusText}</td>
-                                <td>${word.reviewCount || 0}</td>
-                            </tr>
-                        `;
-                    });
-                    
-                    detailHtml += '</tbody></table></div>';
-                } else {
-                    detailHtml += '<p>该学生还没有添加单词</p>';
-                }
-                
-                detailHtml += '<button class="btn btn-red" onclick="loadAllStudents()" style="margin-top:20px;">返回列表</button>';
-                
-                document.getElementById('students-data').innerHTML = detailHtml;
-                
-            } catch (error) {
-                console.error('查看学生详情失败:', error);
-            }
-        }
-        
-        // ========== 其他功能 ==========
+        // ========== 设置功能 ==========
         function showSettings() {
             showScreen('settings-screen');
         }
         
         function saveSettings() {
-            alert('设置已保存');
-            showMenu();
+            // 保存设置到本地存储
+            const settings = {
+                autoFlip: document.getElementById('auto-flip').checked,
+                soundEffects: document.getElementById('sound-effects').checked,
+                dailyReminder: document.getElementById('daily-reminder').checked,
+                wordsPerSession: document.getElementById('words-per-session').value
+            };
+            
+            localStorage.setItem('word_trainer_settings', JSON.stringify(settings));
+            showAlert('menu-feedback', '✅ 设置已保存', 'success');
+            setTimeout(() => showMenu(), 1000);
         }
         
-        function showAllWords() {
-            // 教师查看所有单词的功能
-            alert('此功能开发中...');
-        }
-        
-        function logout() {
-            currentUser = null;
-            isTeacher = false;
-            myWords = [];
-            localStorage.removeItem('word_trainer_user');
-            document.getElementById('username').value = '';
-            showLogin();
-        }
-        
-        function showMessage(elementId, message) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.style.display = 'block';
-                element.innerHTML = message;
-                setTimeout(() => {
-                    element.style.display = 'none';
-                }, 3000);
+        // ========== 数据持久化 ==========
+        function saveUserData() {
+            if (appState.currentUser && !appState.isTeacher) {
+                localStorage.setItem(`user_words_${appState.currentUser}`, JSON.stringify(appState.userWords));
             }
         }
         
-        // 绑定回车键
-        document.getElementById('username').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
+        function loadUserData() {
+            if (appState.currentUser && !appState.isTeacher) {
+                const savedData = localStorage.getItem(`user_words_${appState.currentUser}`);
+                if (savedData) {
+                    appState.userWords = JSON.parse(savedData);
+                }
+            }
+        }
+        
+        // ========== 退出登录 ==========
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                appState.currentUser = null;
+                appState.isTeacher = false;
+                appState.userWords = [];
+                localStorage.removeItem('word_trainer_user');
+                document.getElementById('username').value = '';
+                showLogin();
+            }
+        }
+        
+        // ========== 初始化 ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Kathy单词大师训练营启动');
+            
+            // 尝试初始化Supabase（可选）
+            try {
+                supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+                console.log('✅ Supabase连接成功（可选）');
+            } catch (error) {
+                console.log('ℹ️ Supabase连接失败，使用本地存储模式');
+            }
+            
+            // 检查是否有已登录用户
+            const savedUser = localStorage.getItem('word_trainer_user');
+            if (savedUser) {
+                appState.currentUser = savedUser;
+                appState.isTeacher = (savedUser === CONFIG.teacherUsername);
+                
+                if (!appState.isTeacher) {
+                    loadUserData();
+                }
+                
+                showMenu();
+            }
+            
+            // 绑定事件监听器
+            document.getElementById('username')?.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+            
+            // 初始化示例数据（如果用户没有数据）
+            if (appState.userWords.length === 0 && appState.currentUser && !appState.isTeacher) {
+                // 添加一些示例单词
+                appState.userWords = [
+                    { english: 'hello', chinese: '你好', status: '', reviewCount: 0 },
+                    { english: 'world', chinese: '世界', status: '', reviewCount: 0 },
+                    { english: 'apple', chinese: '苹果', status: '', reviewCount: 0 }
+                ];
+                saveUserData();
+            }
+            
+            // 加载设置
+            const savedSettings = localStorage.getItem('word_trainer_settings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('auto-flip').checked = settings.autoFlip;
+                document.getElementById('sound-effects').checked = settings.soundEffects;
+                document.getElementById('daily-reminder').checked = settings.dailyReminder;
+                document.getElementById('words-per-session').value = settings.wordsPerSession;
+            }
         });
     </script>
 </body>
