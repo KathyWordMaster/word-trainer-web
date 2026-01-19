@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KathyWordMaster - 智能英语单词训练营</title>
+    <title>Kathy单词大使训练营 - 智能英语学习系统</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Microsoft YaHei', Arial, sans-serif; }
@@ -34,33 +34,122 @@
         
         .batch-textarea { width: 100%; height: 200px; padding: 15px; border: 2px solid #ddd; border-radius: 8px; margin: 20px 0; font-family: monospace; }
         
+        /* 联系信息样式 */
+        .contact-info {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+            border-left: 5px solid #F1C40F;
+        }
+        
+        .contact-info h3 {
+            color: #2C3E50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .wechat-contact {
+            background: #07C160;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(7, 193, 96, 0.3);
+        }
+        
+        .teacher-contact {
+            background: #FF9800;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        
+        .features {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature {
+            background: #E3F2FD;
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid #90CAF9;
+            font-size: 0.9em;
+            color: #1565C0;
+        }
+        
         @media (max-width: 600px) {
             .login-form input { width: 100%; }
             .container { margin: 10px; }
+            .features { flex-direction: column; }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- 顶部标题栏 -->
         <div class="header">
-            <h1>⚡ KathyWordMaster</h1>
-            <h2 style="color: white;">凯西单词大师训练营</h2>
-            <p style="color: #BDC3C7;">智能闪卡英语单词训练系统</p>
+            <h1>⚡ Kathy单词大使训练营</h1>
+            <h2 style="color: white;">智能英语学习系统</h2>
+            <p style="color: #BDC3C7; font-size: 0.9em;">多用户支持 · 教师监控 · 智能记忆曲线</p>
         </div>
         
         <div class="main-content">
             <!-- 登录界面 -->
             <div id="login-screen" class="screen active">
                 <div class="login-form">
-                    <h2>用户登录</h2>
-                    <input type="text" id="username" placeholder="请输入用户名" autofocus>
+                    <h2>用户登录 / 注册</h2>
+                    <input type="text" id="username" placeholder="请输入您的用户名" autofocus>
                     <div style="margin: 20px 0;">
                         <button class="btn" onclick="login()">登录</button>
-                        <button class="btn btn-blue" onclick="createUser()">新用户</button>
+                        <button class="btn btn-blue" onclick="createUser()">新用户注册</button>
                     </div>
-                    <p style="color: #666; margin-top: 20px;">
-                        <strong>教师账号</strong>：teacher（可查看所有学生进度）<br>
-                        <strong>学生账号</strong>：任意用户名
+                    
+                    <!-- 功能特点展示 -->
+                    <div class="features">
+                        <div class="feature">📚 智能闪卡记忆</div>
+                        <div class="feature">📈 学习进度追踪</div>
+                        <div class="feature">👥 多用户支持</div>
+                        <div class="feature">👑 教师监管</div>
+                    </div>
+                    
+                    <!-- 联系信息 -->
+                    <div class="contact-info">
+                        <h3>📞 联系我们</h3>
+                        <p style="color: #555; margin-bottom: 15px;">如有问题或需要帮助，请联系：</p>
+                        
+                        <div class="wechat-contact">
+                            <span>微信联系：</span>
+                            <strong>Kathy151</strong>
+                        </div>
+                        
+                        <div style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                            <p>📧 邮箱：kathy151@kathywordmaster.com</p>
+                            <p>⏰ 服务时间：周一至周五 9:00-18:00</p>
+                        </div>
+                        
+                        <div class="teacher-contact">
+                            👩‍🏫 Kathy老师专属训练系统
+                        </div>
+                    </div>
+                    
+                    <p style="color: #666; margin-top: 20px; font-size: 0.9em;">
+                        学生请输入用户名注册，教师请使用专属账号登录
                     </p>
                 </div>
             </div>
@@ -73,6 +162,10 @@
                 <div id="teacher-section" style="display: none;" class="admin-panel">
                     <h3>👑 教师管理面板</h3>
                     <button class="btn btn-purple" onclick="showTeacherPanel()">查看所有学生学习情况</button>
+                    <div style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                        <p>👩‍🏫 教师：Kathy老师</p>
+                        <p>📞 联系方式：微信 Kathy151</p>
+                    </div>
                 </div>
                 
                 <!-- 学生功能 -->
@@ -83,15 +176,30 @@
                         <button class="btn" onclick="showMyWords()">📖 我的单词库</button>
                         <button class="btn btn-red" onclick="logout()">退出</button>
                     </div>
+                    
+                    <!-- 学生联系信息 -->
+                    <div class="contact-info">
+                        <h3>💡 学习帮助</h3>
+                        <p>学习中遇到问题？需要更多单词库？</p>
+                        <div class="wechat-contact">
+                            联系老师微信：<strong>Kathy151</strong>
+                        </div>
+                        <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
+                            添加时请备注：单词训练营 + 您的用户名
+                        </p>
+                    </div>
                 </div>
             </div>
             
             <!-- 教师监管面板 -->
             <div id="teacher-screen" class="screen">
                 <h2>👑 学生学习情况监管</h2>
+                <div style="color: #666; margin-bottom: 20px;">
+                    <p>👩‍🏫 教师：Kathy老师 | 📞 微信：Kathy151</p>
+                </div>
                 <div style="margin: 20px 0;">
                     <button class="btn" onclick="loadStudentStats()">🔄 刷新数据</button>
-                    <button class="btn btn-red" onclick="showMenu()">返回</button>
+                    <button class="btn btn-red" onclick="showMenu()">返回主菜单</button>
                 </div>
                 <div id="students-data">正在加载数据...</div>
             </div>
@@ -134,10 +242,18 @@
     </div>
 
     <script>
-        // ✅ Supabase配置 - 已完全配置好
+        // ⚠️ 【重要】Supabase配置 ⚠️
         const SUPABASE_CONFIG = {
             url: 'https://lctdyhtydcqhloibogyj.supabase.co',
             key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM'
+        };
+        
+        // 👑 教师配置（隐藏的）
+        const TEACHER_CONFIG = {
+            username: 'kathy151',      // 教师账号（不对外显示）
+            password: '',               // 教师密码（如不需要密码保护，留空即可）
+            displayName: 'Kathy老师',   // 显示名称
+            contactWeChat: 'Kathy151'   // 联系微信
         };
         
         // 初始化
@@ -159,7 +275,7 @@
                 supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
                 console.log('✅ 数据库连接成功');
             } catch (error) {
-                alert('❌ 数据库连接失败，请检查网络');
+                alert('❌ 数据库连接失败，请检查网络连接');
                 return;
             }
             
@@ -167,13 +283,13 @@
             const savedUser = localStorage.getItem('word_trainer_user');
             if (savedUser) {
                 currentUser = savedUser;
-                isTeacher = (currentUser === 'teacher');
+                isTeacher = (currentUser === TEACHER_CONFIG.username);
                 await loadUserData();
                 showMenu();
             }
         }
         
-        // 登录
+        // 登录函数（带教师密码验证）
         async function login() {
             const username = document.getElementById('username').value.trim();
             if (!username) {
@@ -182,16 +298,43 @@
             }
             
             currentUser = username;
-            isTeacher = (username === 'teacher');
             
-            // 保存到本地
-            localStorage.setItem('word_trainer_user', username);
+            // 检查是否为教师账号
+            isTeacher = (username === TEACHER_CONFIG.username);
             
             if (isTeacher) {
-                // 教师直接进入菜单
+                // 教师账号需要密码验证
+                if (TEACHER_CONFIG.password) {
+                    const password = prompt('🔐 请输入教师密码：');
+                    if (password !== TEACHER_CONFIG.password) {
+                        alert('❌ 密码错误，禁止访问教师面板');
+                        currentUser = null;
+                        isTeacher = false;
+                        document.getElementById('username').value = '';
+                        return;
+                    }
+                }
+                
+                // 教师登录成功
+                localStorage.setItem('word_trainer_user', username);
                 showMenu();
+                
+                // 记录教师登录
+                console.log('👑 教师登录成功：' + TEACHER_CONFIG.displayName);
+                
             } else {
-                // 学生：加载或创建用户数据
+                // 学生账号
+                // 检查用户名是否合法
+                if (username.toLowerCase() === 'teacher' || 
+                    username.toLowerCase() === 'admin' ||
+                    username.toLowerCase() === TEACHER_CONFIG.username.toLowerCase()) {
+                    alert('⚠️ 该用户名为系统保留，请使用其他用户名');
+                    document.getElementById('username').value = '';
+                    return;
+                }
+                
+                // 保存到本地
+                localStorage.setItem('word_trainer_user', username);
                 await loadUserData();
                 showMenu();
             }
@@ -205,8 +348,15 @@
                 return;
             }
             
-            if (username === 'teacher') {
-                alert('teacher是保留的教师账号');
+            // 禁止使用教师相关用户名
+            const reservedNames = ['teacher', 'admin', 'kathy', TEACHER_CONFIG.username.toLowerCase()];
+            if (reservedNames.includes(username.toLowerCase())) {
+                alert('⚠️ 该用户名不可用，请选择其他用户名');
+                return;
+            }
+            
+            if (username.length < 2) {
+                alert('用户名至少需要2个字符');
                 return;
             }
             
@@ -218,7 +368,7 @@
                 .single();
             
             if (existing) {
-                alert('用户名已存在');
+                alert('用户名已存在，请直接登录');
                 return;
             }
             
@@ -259,7 +409,7 @@
             isTeacher = false;
             localStorage.setItem('word_trainer_user', username);
             
-            alert(`✅ 用户 ${username} 创建成功！`);
+            alert(`✅ 欢迎 ${username} 加入Kathy单词大使训练营！\n\n开始您的英语学习之旅吧！`);
             showMenu();
         }
         
@@ -346,13 +496,14 @@
         }
         
         function updateMenu() {
-            document.getElementById('welcome-message').textContent = 
-                isTeacher ? '👑 教师管理面板' : `欢迎，${currentUser}！`;
-            
             if (isTeacher) {
+                document.getElementById('welcome-message').textContent = 
+                    `👑 欢迎，${TEACHER_CONFIG.displayName}！`;
                 document.getElementById('teacher-section').style.display = 'block';
                 document.getElementById('student-section').style.display = 'none';
             } else {
+                document.getElementById('welcome-message').textContent = 
+                    `🎓 欢迎，${currentUser}！`;
                 document.getElementById('teacher-section').style.display = 'none';
                 document.getElementById('student-section').style.display = 'block';
             }
@@ -369,7 +520,7 @@
                 const { data: students, error } = await supabase
                     .from('users')
                     .select('*')
-                    .neq('username', 'teacher')
+                    .neq('username', TEACHER_CONFIG.username)
                     .order('last_login', { ascending: false });
                 
                 if (error) {
@@ -378,11 +529,21 @@
                     return;
                 }
                 
+                if (students.length === 0) {
+                    document.getElementById('students-data').innerHTML = 
+                        '<div style="text-align: center; padding: 40px; color: #666;">' +
+                        '<h3>📊 暂无学生数据</h3>' +
+                        '<p>还没有学生注册学习</p>' +
+                        '<p>分享链接给学生开始使用吧！</p>' +
+                        '</div>';
+                    return;
+                }
+                
                 let html = '<table class="stats-table">';
                 html += `
                     <thead>
                         <tr>
-                            <th>学生</th>
+                            <th>学生姓名</th>
                             <th>单词总数</th>
                             <th>已掌握</th>
                             <th>学习中</th>
@@ -408,21 +569,47 @@
                         <tr>
                             <td><strong>${student.username}</strong></td>
                             <td>${student.total_words || 0}</td>
-                            <td>${student.learned_words || 0}</td>
-                            <td>${student.reviewing_words || 0}</td>
-                            <td>${student.new_words || 0}</td>
+                            <td style="color: #4CAF50;">${student.learned_words || 0}</td>
+                            <td style="color: #FF9800;">${student.reviewing_words || 0}</td>
+                            <td style="color: #F44336;">${student.new_words || 0}</td>
                             <td>${student.last_login ? new Date(student.last_login).toLocaleDateString() : '从未'}</td>
-                            <td><button class="btn" onclick="viewStudentDetail('${student.username}')">查看</button></td>
+                            <td><button class="btn" onclick="viewStudentDetail('${student.username}')">查看详情</button></td>
                         </tr>
                     `;
                 }
                 
                 html += '</tbody></table>';
+                
+                // 添加统计摘要
+                const totalStudents = students.length;
+                const totalWords = students.reduce((sum, s) => sum + (s.total_words || 0), 0);
+                const avgWords = totalStudents > 0 ? Math.round(totalWords / totalStudents) : 0;
+                
+                html += `
+                    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                        <h3>📈 班级统计摘要</h3>
+                        <div style="display: flex; justify-content: space-around; margin-top: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #2196F3; font-weight: bold;">${totalStudents}</div>
+                                <div>学生总数</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #4CAF50; font-weight: bold;">${totalWords}</div>
+                                <div>总单词数</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; color: #FF9800; font-weight: bold;">${avgWords}</div>
+                                <div>人均单词</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
                 document.getElementById('students-data').innerHTML = html;
                 
             } catch (error) {
                 document.getElementById('students-data').innerHTML = 
-                    '<p style="color: red;">加载失败，请检查网络</p>';
+                    '<p style="color: red;">加载失败，请检查网络连接</p>';
             }
         }
         
@@ -456,11 +643,17 @@
                 `;
                 
                 words.forEach(word => {
+                    const statusColor = {
+                        '熟悉': '#4CAF50',
+                        '见过': '#FF9800',
+                        '不认识': '#F44336'
+                    }[word.status] || '#666';
+                    
                     detailHtml += `
                         <tr>
                             <td>${word.english || ''}</td>
                             <td>${word.chinese || ''}</td>
-                            <td>${word.status || '未学习'}</td>
+                            <td style="color: ${statusColor};">${word.status || '未学习'}</td>
                             <td>${word.reviewCount || 0}</td>
                         </tr>
                     `;
@@ -546,10 +739,11 @@
             // 显示结果
             const resultDiv = document.getElementById('batch-result');
             resultDiv.innerHTML = `
-                <h4>导入结果：</h4>
+                <h4>📥 导入结果</h4>
                 <p>✅ 成功添加: ${added} 个新单词</p>
                 ${errors.length > 0 ? `<p>❌ 格式错误: ${errors.length} 行</p>` : ''}
                 <p>📊 当前单词总数: ${myWords.length}</p>
+                ${added > 0 ? '<p>💡 提示：现在可以开始训练了！</p>' : ''}
             `;
             resultDiv.style.display = 'block';
             
@@ -560,7 +754,7 @@
         // 开始训练
         async function startTraining() {
             if (myWords.length === 0) {
-                alert('请先添加单词');
+                alert('请先添加单词，然后开始训练');
                 return;
             }
             
@@ -581,6 +775,7 @@
         function showCurrentWord() {
             if (currentWordIndex >= trainingWords.length) {
                 document.getElementById('word-card').textContent = '🎉 训练完成！';
+                document.getElementById('word-card').style.backgroundColor = '#E8F5E9';
                 document.getElementById('progress').textContent = '所有单词训练完成';
                 return;
             }
@@ -600,7 +795,7 @@
             
             if (card.textContent === word.english) {
                 card.textContent = word.chinese;
-                card.style.backgroundColor = '#e8f5e8';
+                card.style.backgroundColor = '#E8F5E8';
             } else {
                 card.textContent = word.english;
                 card.style.backgroundColor = 'white';
@@ -638,9 +833,31 @@
         async function showMyWords() {
             await loadUserData(); // 刷新数据
             
-            let html = `<p>共有 ${myWords.length} 个单词</p>`;
+            let html = `<p>📚 您共有 ${myWords.length} 个单词</p>`;
             
             if (myWords.length > 0) {
+                // 统计
+                const learned = myWords.filter(w => w.status === '熟悉').length;
+                const reviewing = myWords.filter(w => w.status === '见过').length;
+                const newWords = myWords.filter(w => w.status === '不认识' || !w.status).length;
+                
+                html += `
+                    <div style="display: flex; justify-content: space-around; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; color: #4CAF50;">${learned}</div>
+                            <div style="font-size: 0.8em;">已掌握</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; color: #FF9800;">${reviewing}</div>
+                            <div style="font-size: 0.8em;">学习中</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; color: #F44336;">${newWords}</div>
+                            <div style="font-size: 0.8em;">未学习</div>
+                        </div>
+                    </div>
+                `;
+                
                 html += '<div style="max-height: 400px; overflow-y: auto; margin: 20px 0;">';
                 html += '<table class="stats-table">';
                 html += `
@@ -656,11 +873,17 @@
                 `;
                 
                 myWords.forEach(word => {
+                    const statusColor = {
+                        '熟悉': '#4CAF50',
+                        '见过': '#FF9800',
+                        '不认识': '#F44336'
+                    }[word.status] || '#666';
+                    
                     html += `
                         <tr>
                             <td>${word.english}</td>
                             <td>${word.chinese}</td>
-                            <td>${word.status || '未学习'}</td>
+                            <td style="color: ${statusColor};">${word.status || '未学习'}</td>
                             <td>${word.reviewCount || 0}</td>
                         </tr>
                     `;
@@ -679,6 +902,7 @@
             currentUser = null;
             isTeacher = false;
             localStorage.removeItem('word_trainer_user');
+            document.getElementById('username').value = '';
             showScreen('login-screen');
         }
         
