@@ -52,12 +52,24 @@
             display: inline-block;
             font-weight: bold;
         }
+        /* 错误信息样式 */
+        .error {
+            color: red;
+            background: #FFEBEE;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>⚡ Kathy单词大师训练营</h1>
         <h2>快来背单词！</h2>
+        
+        <!-- 错误信息 -->
+        <div id="error-message" class="error"></div>
         
         <div id="login-screen">
             <h3>用户登录 / 注册</h3>
@@ -71,94 +83,325 @@
             <div class="wechat">
                 💬 微信联系：<strong>Kathy151</strong>
             </div>
+            
+            <p style="color: #666; margin-top: 20px; font-size: 14px;">
+                学生请注册新用户，教师请使用账号：kathy151
+            </p>
         </div>
         
         <div id="menu-screen" style="display:none;">
             <h2 id="welcome">欢迎</h2>
-            <p>登录成功！</p>
-            <button class="btn" onclick="startTraining()">开始训练</button>
-            <button class="btn btn-blue" onclick="addWords()">添加单词</button>
-            <button class="btn" onclick="logout()">退出</button>
+            <div id="user-info"></div>
+            
+            <div style="margin: 30px 0;">
+                <button class="btn" onclick="startTraining()">🎯 开始训练</button>
+                <button class="btn btn-blue" onclick="addWords()">📝 添加单词</button>
+                <button class="btn" onclick="viewWords()">📖 我的单词</button>
+                <button class="btn" onclick="logout()">🚪 退出</button>
+            </div>
+            
+            <!-- 单词列表 -->
+            <div id="word-list" style="display:none; margin-top: 20px;">
+                <h3>我的单词库</h3>
+                <div id="words-container"></div>
+            </div>
+        </div>
+        
+        <!-- 添加单词界面 -->
+        <div id="add-screen" style="display:none;">
+            <h3>📝 添加单词</h3>
+            <textarea id="word-input" placeholder="输入单词，每行一个，格式：英文 中文&#10;例如：&#10;hello 你好&#10;apple 苹果" 
+                     style="width: 90%; height: 150px; padding: 10px; margin: 15px 0;"></textarea>
+            <div>
+                <button class="btn" onclick="importWords()">添加单词</button>
+                <button class="btn" onclick="showMenu()">返回</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // 最简单的登录功能 - 绝对能点击！
-        console.log("页面加载完成，脚本开始执行");
+        // 用户数据
+        let currentUser = null;
+        let isTeacher = false;
+        let userWords = [];
         
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 切换界面显示
+        function showScreen(screenId) {
+            console.log('切换到界面:', screenId);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('add-screen').style.display = 'none';
+            document.getElementById('word-list').style.display = 'none';
+            
+            document.getElementById(screenId).style.display = 'block';
+        }
+        
+        function showMenu() {
+            showScreen('menu-screen');
+            updateUserInfo();
+        }
+        
+        // 更新用户信息
+        function updateUserInfo() {
+            if (isTeacher) {
+                document.getElementById('user-info').innerHTML = `
+                    <p style="color: #9C27B0; font-weight: bold;">👑 教师管理面板</p>
+                    <p>微信：Kathy151</p>
+                `;
+            } else {
+                const wordCount = userWords.length;
+                const remembered = userWords.filter(w => w.status === 'remembered').length;
+                
+                document.getElementById('user-info').innerHTML = `
+                    <p>📊 学习统计：</p>
+                    <p>单词总数：${wordCount} 个</p>
+                    <p>已掌握：${remembered} 个</p>
+                `;
+            }
+        }
+        
+        // 登录功能
         function handleLogin() {
-            console.log("登录按钮被点击了！");
-            const username = document.getElementById('username').value;
-            console.log("用户名:", username);
+            console.log("=== 登录功能开始 ===");
+            const username = document.getElementById('username').value.trim();
+            console.log("输入的用户名:", username);
             
             if (!username) {
-                alert('请输入用户名');
+                showError('请输入用户名');
                 return;
+            }
+            
+            // 检查用户名是否合法
+            if (username.length < 2) {
+                showError('用户名至少2个字符');
+                return;
+            }
+            
+            currentUser = username;
+            isTeacher = (username === 'kathy151');
+            
+            if (isTeacher) {
+                console.log("检测到教师账号");
+                // 教师登录
+                userWords = [];
+            } else {
+                console.log("检测到学生账号");
+                // 学生登录 - 从本地存储加载数据
+                const savedData = localStorage.getItem(`word_user_${username}`);
+                if (savedData) {
+                    userWords = JSON.parse(savedData);
+                    console.log("加载到用户数据，单词数:", userWords.length);
+                } else {
+                    // 如果是新用户，要求注册
+                    if (confirm(`用户"${username}"不存在，是否注册为新用户？`)) {
+                        handleRegister();
+                        return;
+                    } else {
+                        currentUser = null;
+                        return;
+                    }
+                }
             }
             
             // 显示欢迎信息
             document.getElementById('welcome').textContent = 
-                username === 'kathy151' ? '👑 欢迎Kathy老师！' : `🎓 欢迎 ${username}！`;
+                isTeacher ? '👑 欢迎Kathy老师！' : `🎓 欢迎 ${username}！`;
             
-            // 切换页面
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'block';
+            // 保存登录状态
+            localStorage.setItem('current_user', username);
             
-            alert('登录成功！');
+            showMenu();
+            console.log("登录成功，切换到菜单");
         }
         
+        // 注册功能
         function handleRegister() {
-            console.log("注册按钮被点击了！");
-            const username = document.getElementById('username').value;
+            console.log("=== 注册功能开始 ===");
+            const username = document.getElementById('username').value.trim();
             console.log("注册用户名:", username);
             
             if (!username) {
-                alert('请输入用户名');
+                showError('请输入用户名');
                 return;
             }
             
             if (username.length < 2) {
-                alert('用户名至少2个字符');
+                showError('用户名至少2个字符');
                 return;
             }
+            
+            // 检查是否已存在
+            const savedData = localStorage.getItem(`word_user_${username}`);
+            if (savedData) {
+                showError('用户名已存在，请直接登录');
+                return;
+            }
+            
+            // 检查是否为教师用户名
+            if (username.toLowerCase() === 'kathy151') {
+                showError('该用户名不可用');
+                return;
+            }
+            
+            // 创建新用户
+            currentUser = username;
+            isTeacher = false;
+            userWords = []; // 初始为空
+            
+            // 保存到本地存储
+            localStorage.setItem(`word_user_${username}`, JSON.stringify([]));
+            localStorage.setItem('current_user', username);
+            
+            console.log("新用户创建成功，用户名:", username);
             
             // 显示欢迎信息
             document.getElementById('welcome').textContent = `🎓 欢迎 ${username}！`;
             
-            // 切换页面
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'block';
-            
-            alert(`✅ 欢迎 ${username} 加入训练营！`);
+            showMenu();
+            alert(`✅ 欢迎 ${username} 加入Kathy单词大师训练营！\n\n开始你的单词学习之旅吧！`);
         }
         
+        // 单词训练
         function startTraining() {
-            alert('开始单词训练功能');
-        }
-        
-        function addWords() {
-            alert('添加单词功能');
-        }
-        
-        function logout() {
-            document.getElementById('login-screen').style.display = 'block';
-            document.getElementById('menu-screen').style.display = 'none';
-            document.getElementById('username').value = '';
-        }
-        
-        // 绑定回车键
-        document.getElementById('username').addEventListener('keypress', function(e) {
-            console.log("按下了键盘:", e.key);
-            if (e.key === 'Enter') {
-                console.log("检测到回车键");
-                handleLogin();
+            if (userWords.length === 0) {
+                alert('请先添加单词，然后开始训练');
+                return;
             }
-        });
+            
+            alert(`开始训练 ${userWords.length} 个单词`);
+            // 这里可以添加训练逻辑
+        }
         
-        // 页面加载完成
+        // 添加单词
+        function addWords() {
+            showScreen('add-screen');
+        }
+        
+        // 导入单词
+        function importWords() {
+            const input = document.getElementById('word-input').value.trim();
+            
+            if (!input) {
+                alert('请输入单词');
+                return;
+            }
+            
+            const lines = input.split('\n');
+            let added = 0;
+            
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                
+                // 简单解析：英文和中文用空格分隔
+                const parts = trimmed.split(/\s+/);
+                if (parts.length >= 2) {
+                    const english = parts[0];
+                    const chinese = parts.slice(1).join(' ');
+                    
+                    // 检查是否重复
+                    const exists = userWords.some(w => 
+                        w.english.toLowerCase() === english.toLowerCase());
+                    
+                    if (!exists) {
+                        userWords.push({
+                            english: english,
+                            chinese: chinese,
+                            status: '', // 未学习
+                            reviewCount: 0
+                        });
+                        added++;
+                    }
+                }
+            }
+            
+            // 保存到本地存储
+            if (currentUser && !isTeacher) {
+                localStorage.setItem(`word_user_${currentUser}`, JSON.stringify(userWords));
+            }
+            
+            alert(`✅ 成功添加 ${added} 个新单词\n当前单词总数：${userWords.length}`);
+            document.getElementById('word-input').value = '';
+            showMenu();
+        }
+        
+        // 查看单词
+        function viewWords() {
+            if (userWords.length === 0) {
+                document.getElementById('words-container').innerHTML = 
+                    '<p>还没有单词，快去添加吧！</p>';
+            } else {
+                let html = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
+                userWords.forEach((word, index) => {
+                    const status = word.status === 'remembered' ? '✅' : 
+                                  word.status === 'fuzzy' ? '🔄' : '❌';
+                    html += `
+                        <div style="padding: 10px; margin: 5px 0; background: #f5f5f5; border-radius: 5px;">
+                            <strong>${word.english}</strong> - ${word.chinese}
+                            <span style="float: right;">${status}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('words-container').innerHTML = html;
+            }
+            
+            document.getElementById('word-list').style.display = 'block';
+        }
+        
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                currentUser = null;
+                isTeacher = false;
+                userWords = [];
+                localStorage.removeItem('current_user');
+                document.getElementById('username').value = '';
+                showScreen('login-screen');
+            }
+        }
+        
+        // 页面加载时检查是否已登录
         window.addEventListener('load', function() {
-            console.log("✅ 页面完全加载完成");
-            console.log("按钮元素:", document.querySelectorAll('button'));
+            console.log("页面加载完成");
+            
+            // 检查是否有保存的用户
+            const savedUser = localStorage.getItem('current_user');
+            if (savedUser) {
+                currentUser = savedUser;
+                isTeacher = (savedUser === 'kathy151');
+                
+                // 加载用户数据
+                if (!isTeacher) {
+                    const savedData = localStorage.getItem(`word_user_${savedUser}`);
+                    if (savedData) {
+                        userWords = JSON.parse(savedData);
+                    }
+                }
+                
+                document.getElementById('welcome').textContent = 
+                    isTeacher ? '👑 欢迎Kathy老师！' : `🎓 欢迎 ${savedUser}！`;
+                document.getElementById('username').value = savedUser;
+                showMenu();
+            }
+            
+            // 绑定回车键
+            document.getElementById('username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    console.log("回车键被按下");
+                    handleLogin();
+                }
+            });
         });
     </script>
 </body>
