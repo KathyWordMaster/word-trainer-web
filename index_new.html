@@ -269,7 +269,9 @@ async function handleLogin() {
                 .from('users')
                 .insert([{
                     username: username,
-                    is_teacher: isTeacherAccount
+                    is_teacher: isTeacherAccount,
+                    teacher_id: isTeacherAccount ? username : 'kathy151',
+                    last_login: new Date().toISOString()
                 }])
                 .select()
                 .single();
@@ -416,13 +418,13 @@ async function loadGroupsList() {
             // 获取单词数量
             const { data: words } = await supabase
                 .from('group_words')
-                .select('count')
+                .select('id')
                 .eq('group_id', group.id);
             
             return {
                 ...group,
                 studentCount: students?.length || 0,
-                wordCount: words?.[0]?.count || 0,
+                wordCount: words?.length || 0,
                 createdDate: new Date(group.created_at).toLocaleDateString('zh-CN')
             };
         }));
@@ -546,6 +548,34 @@ async function saveNewGroup() {
     }
 }
 
+function editGroup(groupId) {
+    // 这里可以添加编辑分组的逻辑
+    showAlert('编辑功能开发中，请先删除再重新创建', 'warning');
+}
+
+async function deleteGroup(groupId) {
+    if (!confirm('确定要删除这个分组吗？分组中的所有单词和学生的学习记录都会被删除！')) {
+        return;
+    }
+    
+    try {
+        // 删除分组（由于外键约束，相关记录也会被删除）
+        const { error } = await supabase
+            .from('word_groups')
+            .delete()
+            .eq('id', groupId);
+        
+        if (error) throw error;
+        
+        showAlert('分组删除成功', 'success');
+        setTimeout(() => showGroups(), 500);
+        
+    } catch (error) {
+        console.error('删除分组错误:', error);
+        showAlert('删除失败', 'error');
+    }
+}
+
 async function manageGroup(groupId) {
     app.currentGroup = groupId;
     
@@ -589,11 +619,11 @@ async function loadGroupManagement(groupId, groupName) {
         
         const { data: words } = await supabase
             .from('group_words')
-            .select('count')
+            .select('id')
             .eq('group_id', groupId);
         
         const studentCount = students?.length || 0;
-        const wordCount = words?.[0]?.count || 0;
+        const wordCount = words?.length || 0;
         
         const content = document.getElementById('group-management-content');
         content.innerHTML = `
@@ -614,8 +644,8 @@ async function loadGroupManagement(groupId, groupName) {
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
                         <button class="btn" onclick="addWordsToGroup(${groupId})">添加单词</button>
                         <button class="btn btn-blue" onclick="addStudentsToGroup(${groupId})">添加学生</button>
-                        <button class="btn" onclick="viewGroupWords(${groupId})">查看单词</button>
-                        <button class="btn" onclick="viewGroupStudents(${groupId})">查看学生</button>
+                        <button class="btn" onclick="manageGroupWords(${groupId})">查看单词</button>
+                        <button class="btn" onclick="manageGroupStudents(${groupId})">查看学生</button>
                     </div>
                 </div>
             </div>
@@ -853,10 +883,18 @@ async function saveWordsToGroup(groupId) {
         if (!trimmed) return;
         if (trimmed.startsWith('#')) return;
         
-        const parts = trimmed.split(/\s+/);
-        if (parts.length >= 2) {
-            const english = parts.slice(0, -1).join(' ');
-            const chinese = parts[parts.length - 1];
+        // 处理带引号的短语
+        let english = trimmed;
+        let chinese = '';
+        
+        // 检查是否有中文（非英文字符）
+        const chineseMatch = trimmed.match(/[\u4e00-\u9fa5].*/);
+        if (chineseMatch) {
+            chinese = chineseMatch[0];
+            english = trimmed.substring(0, trimmed.indexOf(chineseMatch[0])).trim();
+        }
+        
+        if (english && chinese) {
             wordsToAdd.push({
                 group_id: groupId,
                 english: english,
@@ -866,7 +904,7 @@ async function saveWordsToGroup(groupId) {
     });
     
     if (wordsToAdd.length === 0) {
-        showAlert('没有有效单词可添加', 'error');
+        showAlert('没有有效单词可添加，请检查格式', 'error');
         return;
     }
     
@@ -888,10 +926,9 @@ async function saveWordsToGroup(groupId) {
             // 获取刚插入的单词
             const { data: insertedWords } = await supabase
                 .from('group_words')
-                .select('id, english, chinese')
+                .select('english, chinese')
                 .eq('group_id', groupId)
-                .order('created_at', { ascending: false })
-                .limit(wordsToAdd.length);
+                .in('english', wordsToAdd.map(w => w.english));
             
             if (insertedWords) {
                 // 为每个学生创建学习记录
@@ -903,18 +940,19 @@ async function saveWordsToGroup(groupId) {
                         status: 'new'
                     }));
                     
-                    // 检查是否已有记录
+                    // 批量插入学习记录
                     for (const record of studyRecords) {
-                        const { data: existing } = await supabase
+                        // 使用 upsert 避免重复
+                        await supabase
                             .from('study_records')
-                            .select('id')
-                            .eq('student_id', record.student_id)
-                            .eq('english', record.english)
-                            .single();
-                        
-                        if (!existing) {
-                            await supabase.from('study_records').insert([record]);
-                        }
+                            .upsert({
+                                student_id: record.student_id,
+                                english: record.english,
+                                chinese: record.chinese,
+                                status: 'new'
+                            }, {
+                                onConflict: 'student_id,english'
+                            });
                     }
                 }
             }
@@ -923,6 +961,7 @@ async function saveWordsToGroup(groupId) {
         document.getElementById('add-words-result').innerHTML = `
             <div style="background: #D4EDDA; color: #155724; padding: 15px; border-radius: 8px; margin-top: 20px;">
                 ✅ 成功添加 ${wordsToAdd.length} 个单词到分组！
+                ${students && students.length > 0 ? `已同步给 ${students.length} 名学生` : ''}
             </div>
         `;
         
@@ -971,6 +1010,298 @@ async function removeWordFromGroup(wordId, groupId) {
         
     } catch (error) {
         console.error('移除单词错误:', error);
+        showAlert('移除失败', 'error');
+    }
+}
+
+// 管理分组学生
+async function manageGroupStudents(groupId) {
+    try {
+        const { data: group } = await supabase
+            .from('word_groups')
+            .select('name')
+            .eq('id', groupId)
+            .single();
+        
+        const content = document.getElementById('teacher-content');
+        content.innerHTML = `
+            <div style="max-width: 1000px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h3 style="color: #333;">🎓 分组：${group.name} - 学生管理</h3>
+                    <div>
+                        <button class="btn btn-blue" onclick="addStudentsToGroup(${groupId})">添加学生</button>
+                        <button class="btn btn-red" onclick="manageGroup(${groupId})">返回分组</button>
+                    </div>
+                </div>
+                
+                <div id="group-students-content">
+                    <p style="text-align: center;">加载学生列表...</p>
+                </div>
+            </div>
+        `;
+        
+        loadGroupStudents(groupId, group.name);
+        
+    } catch (error) {
+        console.error('管理分组学生错误:', error);
+        showAlert('加载失败', 'error');
+    }
+}
+
+async function loadGroupStudents(groupId, groupName) {
+    try {
+        // 获取分组的所有学生
+        const { data: memberships, error } = await supabase
+            .from('student_group_memberships')
+            .select('student_id, joined_at')
+            .eq('group_id', groupId);
+        
+        if (error) throw error;
+        
+        const content = document.getElementById('group-students-content');
+        
+        if (!memberships || memberships.length === 0) {
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3em; margin-bottom: 20px;">👥</div>
+                    <h3 style="color: #666; margin-bottom: 15px;">分组还没有学生</h3>
+                    <p style="color: #999; margin-bottom: 25px;">点击"添加学生"按钮为学生分配分组</p>
+                    <button class="btn btn-blue" onclick="addStudentsToGroup(${groupId})">添加学生</button>
+                </div>
+            `;
+            return;
+        }
+        
+        // 获取学生详细信息
+        const studentIds = memberships.map(m => m.student_id);
+        const { data: students } = await supabase
+            .from('users')
+            .select('username, last_login')
+            .in('username', studentIds);
+        
+        let html = `
+            <div style="margin-bottom: 20px;">
+                <p style="color: #666;">分组 "${groupName}" 共有 ${memberships.length} 名学生</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>学生</th>
+                            <th>加入时间</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${memberships.map(membership => {
+                            const student = students?.find(s => s.username === membership.student_id);
+                            const joinedDate = new Date(membership.joined_at).toLocaleDateString('zh-CN');
+                            const lastLogin = student?.last_login ? 
+                                new Date(student.last_login).toLocaleDateString('zh-CN') : '从未';
+                            
+                            return `
+                                <tr>
+                                    <td><strong>${membership.student_id}</strong></td>
+                                    <td>${joinedDate}</td>
+                                    <td>${lastLogin}</td>
+                                    <td>
+                                        <button class="btn btn-red" style="padding: 6px 12px; font-size: 14px;" 
+                                                onclick="removeStudentFromGroup('${membership.student_id}', ${groupId})">移出分组</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn" onclick="addStudentsToGroup(${groupId})">继续添加学生</button>
+                <button class="btn btn-red" onclick="manageGroup(${groupId})">返回分组管理</button>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('加载分组学生错误:', error);
+        content.innerHTML = '<p style="color: red; text-align: center;">加载失败</p>';
+    }
+}
+
+function addStudentsToGroup(groupId) {
+    const content = document.getElementById('teacher-content');
+    content.innerHTML = `
+        <div style="max-width: 800px; margin: 0 auto;">
+            <h3 style="color: #333; margin-bottom: 20px;">🎓 为学生分配分组</h3>
+            
+            <div id="add-students-content">
+                <p style="text-align: center;">加载可添加的学生列表...</p>
+            </div>
+        </div>
+    `;
+    
+    loadAvailableStudents(groupId);
+}
+
+async function loadAvailableStudents(groupId) {
+    try {
+        // 获取所有学生
+        const { data: allStudents } = await supabase
+            .from('users')
+            .select('username, last_login')
+            .eq('is_teacher', false)
+            .order('username');
+        
+        // 获取已在分组的学生
+        const { data: existingMembers } = await supabase
+            .from('student_group_memberships')
+            .select('student_id')
+            .eq('group_id', groupId);
+        
+        const existingStudentIds = new Set(existingMembers?.map(m => m.student_id) || []);
+        
+        // 获取分组信息
+        const { data: group } = await supabase
+            .from('word_groups')
+            .select('name')
+            .eq('id', groupId)
+            .single();
+        
+        const content = document.getElementById('add-students-content');
+        
+        let html = `
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+                <p style="color: #666;">为分组 <strong>"${group.name}"</strong> 添加学生：</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>学生</th>
+                            <th>最后登录</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${allStudents?.map(student => {
+                            const isInGroup = existingStudentIds.has(student.username);
+                            const lastLogin = student.last_login ? 
+                                new Date(student.last_login).toLocaleDateString('zh-CN') : '从未';
+                            
+                            return `
+                                <tr>
+                                    <td><strong>${student.username}</strong></td>
+                                    <td>${lastLogin}</td>
+                                    <td>
+                                        <span style="color: ${isInGroup ? '#4CAF50' : '#666'}; font-weight: bold;">
+                                            ${isInGroup ? '已在分组' : '未在分组'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        ${isInGroup ? 
+                                            '<button class="btn" style="padding: 6px 12px; font-size: 14px;" disabled>已在分组</button>' :
+                                            `<button class="btn btn-blue" style="padding: 6px 12px; font-size: 14px;" 
+                                                    onclick="assignStudentToGroup('${student.username}', ${groupId})">添加到分组</button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-red" onclick="manageGroupStudents(${groupId})">返回学生管理</button>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('加载学生列表错误:', error);
+        content.innerHTML = '<p style="color: red; text-align: center;">加载失败</p>';
+    }
+}
+
+async function assignStudentToGroup(studentId, groupId) {
+    try {
+        // 添加学生到分组
+        const { error } = await supabase
+            .from('student_group_memberships')
+            .insert([{
+                student_id: studentId,
+                group_id: groupId
+            }]);
+        
+        if (error) throw error;
+        
+        // 同步分组单词给学生
+        await syncGroupWordsToStudent(studentId, groupId);
+        
+        showAlert(`学生 ${studentId} 已成功添加到分组`, 'success');
+        setTimeout(() => addStudentsToGroup(groupId), 500);
+        
+    } catch (error) {
+        console.error('添加学生到分组错误:', error);
+        showAlert('添加失败', 'error');
+    }
+}
+
+async function syncGroupWordsToStudent(studentId, groupId) {
+    try {
+        // 获取分组的所有单词
+        const { data: groupWords } = await supabase
+            .from('group_words')
+            .select('english, chinese')
+            .eq('group_id', groupId);
+        
+        if (!groupWords || groupWords.length === 0) return;
+        
+        // 为学生添加学习记录
+        for (const word of groupWords) {
+            await supabase
+                .from('study_records')
+                .upsert({
+                    student_id: studentId,
+                    english: word.english,
+                    chinese: word.chinese,
+                    status: 'new'
+                }, {
+                    onConflict: 'student_id,english',
+                    ignoreDuplicates: false
+                });
+        }
+        
+    } catch (error) {
+        console.error('同步分组单词错误:', error);
+    }
+}
+
+async function removeStudentFromGroup(studentId, groupId) {
+    if (!confirm(`确定要将学生 ${studentId} 移出这个分组吗？学生将无法再学习该分组的单词。`)) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('student_group_memberships')
+            .delete()
+            .eq('student_id', studentId)
+            .eq('group_id', groupId);
+        
+        if (error) throw error;
+        
+        showAlert(`学生 ${studentId} 已从分组中移除`, 'success');
+        setTimeout(() => loadGroupStudents(groupId, ''), 500);
+        
+    } catch (error) {
+        console.error('移除学生错误:', error);
         showAlert('移除失败', 'error');
     }
 }
@@ -1176,8 +1507,8 @@ async function loadStudentGroups(studentId) {
                                 
                                 <div style="text-align: center;">
                                     ${isMember ? 
-                                        `<button class="btn btn-red" style="width: 100%;" onclick="removeStudentFromGroup('${studentId}', ${group.id})">移出分组</button>` :
-                                        `<button class="btn" style="width: 100%;" onclick="addStudentToGroup('${studentId}', ${group.id})">加入分组</button>`
+                                        `<button class="btn btn-red" style="width: 100%;" onclick="removeStudentFromGroupAll('${studentId}', ${group.id})">移出分组</button>` :
+                                        `<button class="btn" style="width: 100%;" onclick="addStudentToGroupAll('${studentId}', ${group.id})">加入分组</button>`
                                     }
                                 </div>
                             </div>
@@ -1201,7 +1532,7 @@ async function loadStudentGroups(studentId) {
     }
 }
 
-async function addStudentToGroup(studentId, groupId) {
+async function addStudentToGroupAll(studentId, groupId) {
     try {
         const { error } = await supabase
             .from('student_group_memberships')
@@ -1224,7 +1555,7 @@ async function addStudentToGroup(studentId, groupId) {
     }
 }
 
-async function removeStudentFromGroup(studentId, groupId) {
+async function removeStudentFromGroupAll(studentId, groupId) {
     if (!confirm('确定要将学生移出这个分组吗？学生将无法再学习该分组的单词。')) {
         return;
     }
@@ -1244,44 +1575,6 @@ async function removeStudentFromGroup(studentId, groupId) {
     } catch (error) {
         console.error('移除学生错误:', error);
         showAlert('移除失败', 'error');
-    }
-}
-
-// 同步分组单词给学生
-async function syncGroupWordsToStudent(studentId, groupId) {
-    try {
-        // 获取分组的所有单词
-        const { data: groupWords } = await supabase
-            .from('group_words')
-            .select('english, chinese')
-            .eq('group_id', groupId);
-        
-        if (!groupWords || groupWords.length === 0) return;
-        
-        // 检查学生是否已有这些单词
-        for (const word of groupWords) {
-            const { data: existing } = await supabase
-                .from('study_records')
-                .select('id')
-                .eq('student_id', studentId)
-                .eq('english', word.english)
-                .single();
-            
-            if (!existing) {
-                // 创建学习记录
-                await supabase
-                    .from('study_records')
-                    .insert([{
-                        student_id: studentId,
-                        english: word.english,
-                        chinese: word.chinese,
-                        status: 'new'
-                    }]);
-            }
-        }
-        
-    } catch (error) {
-        console.error('同步分组单词错误:', error);
     }
 }
 
@@ -1412,6 +1705,126 @@ async function loadGroupProgress() {
     }
 }
 
+async function viewGroupProgress(groupId) {
+    try {
+        const { data: group } = await supabase
+            .from('word_groups')
+            .select('name')
+            .eq('id', groupId)
+            .single();
+        
+        const content = document.getElementById('teacher-content');
+        content.innerHTML = `
+            <div style="max-width: 1000px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h3 style="color: #333;">📊 分组：${group.name} - 学习进度</h3>
+                    <button class="btn btn-red" onclick="showProgress()">返回进度列表</button>
+                </div>
+                
+                <div id="group-progress-detail">
+                    <p style="text-align: center;">加载详细进度...</p>
+                </div>
+            </div>
+        `;
+        
+        loadGroupProgressDetail(groupId, group.name);
+        
+    } catch (error) {
+        console.error('查看分组进度错误:', error);
+        showAlert('加载失败', 'error');
+    }
+}
+
+async function loadGroupProgressDetail(groupId, groupName) {
+    try {
+        // 获取分组的学生
+        const { data: memberships } = await supabase
+            .from('student_group_memberships')
+            .select('student_id')
+            .eq('group_id', groupId);
+        
+        const studentIds = memberships?.map(m => m.student_id) || [];
+        
+        // 获取分组的单词
+        const { data: groupWords } = await supabase
+            .from('group_words')
+            .select('english')
+            .eq('group_id', groupId);
+        
+        const wordCount = groupWords?.length || 0;
+        
+        // 获取每个学生的学习进度
+        const studentsProgress = await Promise.all(studentIds.map(async (studentId) => {
+            const { data: records } = await supabase
+                .from('study_records')
+                .select('*')
+                .eq('student_id', studentId)
+                .in('english', groupWords.map(w => w.english));
+            
+            const mastered = records?.filter(r => r.status === 'mastered').length || 0;
+            const progress = wordCount > 0 ? Math.round((mastered / wordCount) * 100) : 0;
+            
+            return {
+                studentId: studentId,
+                totalWords: wordCount,
+                mastered: mastered,
+                progress: progress
+            };
+        }));
+        
+        const content = document.getElementById('group-progress-detail');
+        
+        let html = `
+            <div style="margin-bottom: 30px;">
+                <p style="color: #666;">分组 <strong>"${groupName}"</strong> 共有 ${studentIds.length} 名学生，${wordCount} 个单词</p>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>学生</th>
+                            <th>单词总数</th>
+                            <th>已掌握</th>
+                            <th>掌握率</th>
+                            <th>学习进度</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${studentsProgress.map(student => `
+                            <tr>
+                                <td><strong>${student.studentId}</strong></td>
+                                <td>${student.totalWords}</td>
+                                <td style="color: #4CAF50;">${student.mastered}</td>
+                                <td style="color: ${student.progress >= 80 ? '#4CAF50' : student.progress >= 50 ? '#FF9800' : '#F44336'}; font-weight: bold;">
+                                    ${student.progress}%
+                                </td>
+                                <td>
+                                    <div style="height: 8px; background: #e0e0e0; border-radius: 4px;">
+                                        <div style="width: ${student.progress}%; height: 100%; background: ${student.progress >= 80 ? '#4CAF50' : student.progress >= 50 ? '#FF9800' : '#F44336'}; border-radius: 4px;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-red" onclick="showProgress()">
+                    <span>🔙 返回进度列表</span>
+                </button>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('加载分组进度详情错误:', error);
+        content.innerHTML = '<p style="color: red; text-align: center;">加载失败</p>';
+    }
+}
+
 // 系统统计
 async function showStats() {
     const content = document.getElementById('teacher-content');
@@ -1419,13 +1832,82 @@ async function showStats() {
         <div style="max-width: 1000px; margin: 0 auto;">
             <h3 style="color: #333; margin-bottom: 30px;">📈 系统统计</h3>
             <div id="system-stats">
-                <!-- 统计内容 -->
+                <div style="text-align: center;">
+                    <div class="card-grid">
+                        <div class="stat-card">
+                            <div style="font-size: 3em;">📚</div>
+                            <div class="number" id="total-groups">0</div>
+                            <div class="label">分组总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 3em;">👥</div>
+                            <div class="number" id="total-students">0</div>
+                            <div class="label">学生总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 3em;">📝</div>
+                            <div class="number" id="total-words">0</div>
+                            <div class="label">单词总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 3em;">🎯</div>
+                            <div class="number" id="mastered-words">0</div>
+                            <div class="label">已掌握单词</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 40px;">
+                        <button class="btn btn-red" onclick="loadTeacherHome()">
+                            <span>🔙 返回主面板</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
     
-    // 简单版本，返回主面板
-    setTimeout(() => loadTeacherHome(), 100);
+    loadSystemStats();
+}
+
+async function loadSystemStats() {
+    try {
+        // 获取分组总数
+        const { data: groups } = await supabase
+            .from('word_groups')
+            .select('count')
+            .eq('teacher_id', app.teacherId);
+        
+        // 获取学生总数
+        const { data: students } = await supabase
+            .from('users')
+            .select('count')
+            .eq('is_teacher', false);
+        
+        // 获取单词总数
+        const { data: words } = await supabase
+            .from('group_words')
+            .select('count')
+            .in('group_id', (await supabase
+                .from('word_groups')
+                .select('id')
+                .eq('teacher_id', app.teacherId)
+            ).data?.map(g => g.id) || []);
+        
+        // 获取已掌握单词数
+        const { data: mastered } = await supabase
+            .from('study_records')
+            .select('count')
+            .eq('status', 'mastered');
+        
+        // 更新显示
+        document.getElementById('total-groups').textContent = groups?.[0]?.count || 0;
+        document.getElementById('total-students').textContent = students?.[0]?.count || 0;
+        document.getElementById('total-words').textContent = words?.[0]?.count || 0;
+        document.getElementById('mastered-words').textContent = mastered?.[0]?.count || 0;
+        
+    } catch (error) {
+        console.error('加载系统统计错误:', error);
+    }
 }
 
 // ========== 学生功能 ==========
@@ -1489,8 +1971,8 @@ async function loadStudentHome() {
                     <span style="color: #666;">掌握进度</span>
                     <span style="color: #4CAF50; font-weight: bold;">${progress}%</span>
                 </div>
-                <div class="progress-bar" style="height: 10px;">
-                    <div style="height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); width: ${progress}%; border-radius: 5px;"></div>
+                <div style="height: 10px; background: #e0e0e0; border-radius: 5px;">
+                    <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 5px;"></div>
                 </div>
             </div>
             
