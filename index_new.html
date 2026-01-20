@@ -250,6 +250,39 @@
             background: #e3f2fd;
         }
         
+        /* 状态消息样式 */
+        .status-message {
+            display: none;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .status-loading {
+            background: #FFF3CD;
+            color: #856404;
+            border: 1px solid #FFEEBA;
+        }
+        
+        .status-success {
+            background: #D4EDDA;
+            color: #155724;
+            border: 1px solid #C3E6CB;
+        }
+        
+        .status-error {
+            background: #F8D7DA;
+            color: #721C24;
+            border: 1px solid #F5C6CB;
+        }
+        
+        .status-info {
+            background: #D1ECF1;
+            color: #0C5460;
+            border: 1px solid #BEE5EB;
+        }
+        
         /* 响应式 */
         @media (max-width: 768px) {
             .container {
@@ -304,7 +337,15 @@
                             <button class="btn btn-blue" onclick="register()">
                                 <span>📝 学生注册</span>
                             </button>
+                            <button class="btn btn-gold" onclick="testDatabaseConnection()" style="padding: 10px 20px; font-size: 14px;">
+                                <span>🐛 测试连接</span>
+                            </button>
                         </div>
+                    </div>
+                    
+                    <!-- 状态信息 -->
+                    <div id="login-status" class="status-message status-info">
+                        正在连接到学习数据库...
                     </div>
                     
                     <!-- 联系信息 -->
@@ -318,9 +359,6 @@
                             学生请用英文名注册登录，不确定拼写的找Kathy确认哦！
                         </p>
                     </div>
-                    
-                    <!-- 状态信息 -->
-                    <div id="login-status" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-top: 20px;"></div>
                 </div>
             </div>
             
@@ -710,6 +748,116 @@ computer 电脑
             previewWordsList: []    // 预览单词列表
         };
         
+        // ========== 状态显示函数 ==========
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('login-status');
+            if (!statusDiv) return;
+            
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status-message';
+            
+            switch(type) {
+                case 'loading':
+                    statusDiv.classList.add('status-loading');
+                    statusDiv.innerHTML = `⏳ ${message}`;
+                    break;
+                case 'success':
+                    statusDiv.classList.add('status-success');
+                    statusDiv.innerHTML = `✅ ${message}`;
+                    break;
+                case 'error':
+                    statusDiv.classList.add('status-error');
+                    statusDiv.innerHTML = `❌ ${message}`;
+                    break;
+                default:
+                    statusDiv.classList.add('status-info');
+                    statusDiv.innerHTML = message;
+            }
+        }
+        
+        // ========== 数据库测试函数 ==========
+        async function testDatabaseConnection() {
+            try {
+                showStatus('测试数据库连接中...', 'loading');
+                
+                // 测试1：检查supabase对象
+                if (!supabase) {
+                    showStatus('❌ Supabase客户端未初始化', 'error');
+                    return;
+                }
+                
+                // 测试2：检查users表
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
+                
+                if (usersError) {
+                    showStatus(`❌ Users表查询失败: ${usersError.message}`, 'error');
+                    return;
+                }
+                
+                // 测试3：检查表是否存在（通过尝试创建测试记录）
+                const testUsername = `test_${Date.now()}`;
+                const { data: testUser, error: createError } = await supabase
+                    .from('users')
+                    .insert([{
+                        username: testUsername,
+                        is_teacher: false,
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    // 如果表不存在，提供创建SQL
+                    const sql = `
+                        CREATE TABLE users (
+                            id BIGSERIAL PRIMARY KEY,
+                            username TEXT UNIQUE NOT NULL,
+                            is_teacher BOOLEAN DEFAULT FALSE,
+                            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                            last_login TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                        );
+                        
+                        CREATE TABLE user_words (
+                            id BIGSERIAL PRIMARY KEY,
+                            user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+                            english TEXT NOT NULL,
+                            chinese TEXT NOT NULL,
+                            status TEXT DEFAULT '',
+                            review_count INTEGER DEFAULT 0,
+                            last_review TIMESTAMP WITH TIME ZONE,
+                            added_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                            word_type TEXT DEFAULT 'word',
+                            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                        );
+                        
+                        INSERT INTO users (username, is_teacher) 
+                        VALUES ('kathy151', true)
+                        ON CONFLICT (username) DO NOTHING;
+                    `;
+                    
+                    showStatus(`❌ 数据库表未创建<br><br>
+                        <strong>请在Supabase SQL编辑器中运行以下SQL：</strong><br>
+                        <textarea style="width:100%; height:200px; margin-top:10px; font-family:monospace; font-size:12px;">${sql}</textarea>`, 'error');
+                    return;
+                }
+                
+                // 测试4：删除测试用户
+                await supabase
+                    .from('users')
+                    .delete()
+                    .eq('id', testUser.id);
+                
+                showStatus('✅ 数据库连接测试通过！', 'success');
+                
+            } catch (error) {
+                console.error('测试错误:', error);
+                showStatus(`❌ 测试失败: ${error.message}`, 'error');
+            }
+        }
+        
         // ========== 数据库辅助函数 ==========
         async function getOrCreateUser(username, isTeacher = false) {
             try {
@@ -722,6 +870,7 @@ computer 电脑
                 
                 if (checkError && checkError.code === 'PGRST116') {
                     // 用户不存在，创建新用户
+                    console.log('创建新用户:', username);
                     const { data: newUser, error: createError } = await supabase
                         .from('users')
                         .insert([{
@@ -733,10 +882,15 @@ computer 电脑
                         .select()
                         .single();
                     
-                    if (createError) throw createError;
+                    if (createError) {
+                        console.error('创建用户错误:', createError);
+                        throw new Error('无法创建用户: ' + createError.message);
+                    }
+                    
                     return newUser;
                 } else if (checkError) {
-                    throw checkError;
+                    console.error('检查用户错误:', checkError);
+                    throw new Error('无法检查用户: ' + checkError.message);
                 } else {
                     // 用户已存在，更新最后登录时间
                     await supabase
@@ -916,15 +1070,37 @@ computer 电脑
             const username = document.getElementById('username').value.trim();
             
             if (!username) {
-                alert('请输入用户名');
+                showStatus('请输入用户名', 'error');
                 return;
             }
             
             try {
+                // 显示加载状态
+                showStatus('正在连接数据库...', 'loading');
+                
+                // 测试数据库连接
+                const { data: testData, error: testError } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
+                
+                if (testError) {
+                    console.error('数据库连接测试失败:', testError);
+                    showStatus('数据库连接失败，请检查网络或点击"测试连接"', 'error');
+                    return;
+                }
+                
+                showStatus('验证用户信息...', 'loading');
+                
                 // 检查是否是教师账号
                 if (username === TEACHER_USERNAME) {
                     // 教师登录
                     const user = await getOrCreateUser(username, true);
+                    
+                    if (!user) {
+                        showStatus('教师账户操作失败', 'error');
+                        return;
+                    }
                     
                     appState.currentUser = username;
                     appState.isTeacher = true;
@@ -936,17 +1112,27 @@ computer 电脑
                     localStorage.setItem('user_id', user.id);
                     localStorage.setItem('user_role', 'teacher');
                     
-                    showTeacherMenu();
-                    alert('👑 欢迎Kathy老师！');
+                    showStatus('登录成功！', 'success');
+                    setTimeout(() => {
+                        showTeacherMenu();
+                        alert('👑 欢迎Kathy老师！');
+                    }, 500);
+                    
                 } else {
                     // 学生登录
                     const user = await getOrCreateUser(username, false);
+                    
+                    if (!user) {
+                        showStatus('学生账户操作失败', 'error');
+                        return;
+                    }
                     
                     appState.currentUser = username;
                     appState.isTeacher = false;
                     appState.userId = user.id;
                     
                     // 从数据库加载学生的单词
+                    showStatus('加载单词数据...', 'loading');
                     appState.userWords = await loadUserWordsFromDB();
                     
                     // 保存登录状态
@@ -955,12 +1141,15 @@ computer 电脑
                     localStorage.setItem('user_role', 'student');
                     
                     document.getElementById('student-welcome').textContent = `🎓 欢迎，${username}！`;
-                    showStudentMenu();
+                    showStatus('登录成功！', 'success');
+                    setTimeout(() => {
+                        showStudentMenu();
+                    }, 500);
                 }
                 
             } catch (error) {
                 console.error('登录错误:', error);
-                alert('登录失败，请重试或联系Kathy老师');
+                showStatus(`登录失败: ${error.message || '请重试或联系Kathy老师'}`, 'error');
             }
         }
         
@@ -968,24 +1157,31 @@ computer 电脑
             const username = document.getElementById('username').value.trim();
             
             if (!username) {
-                alert('请输入用户名');
+                showStatus('请输入用户名', 'error');
                 return;
             }
             
             if (username.length < 2) {
-                alert('用户名至少需要2个字符');
+                showStatus('用户名至少需要2个字符', 'error');
                 return;
             }
             
             // 检查是否为教师用户名
             if (username.toLowerCase() === TEACHER_USERNAME.toLowerCase()) {
-                alert('该用户名不可用');
+                showStatus('该用户名不可用', 'error');
                 return;
             }
             
             try {
+                showStatus('创建新账户...', 'loading');
+                
                 // 创建新学生
                 const user = await getOrCreateUser(username, false);
+                
+                if (!user) {
+                    showStatus('创建账户失败', 'error');
+                    return;
+                }
                 
                 appState.currentUser = username;
                 appState.isTeacher = false;
@@ -998,12 +1194,15 @@ computer 电脑
                 localStorage.setItem('user_role', 'student');
                 
                 document.getElementById('student-welcome').textContent = `🎓 欢迎，${username}！`;
-                showStudentMenu();
-                alert(`✅ 欢迎 ${username} 加入Kathy单词大师训练营！`);
+                showStatus('注册成功！', 'success');
+                setTimeout(() => {
+                    showStudentMenu();
+                    alert(`✅ 欢迎 ${username} 加入Kathy单词大师训练营！`);
+                }, 500);
                 
             } catch (error) {
                 console.error('注册错误:', error);
-                alert('注册失败，用户名可能已存在');
+                showStatus(`注册失败: ${error.message || '用户名可能已存在'}`, 'error');
             }
         }
         
@@ -1463,7 +1662,6 @@ water=水`;
             alert('📚 已加载示例单词和短语');
         }
         
-        // ========== 修复短语导入乱码问题 ==========
         function previewWords() {
             const input = document.getElementById('word-input').value.trim();
             
@@ -1976,24 +2174,45 @@ water=水`;
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 Kathy单词大师训练营启动');
             
-            // 检查是否有已登录用户
-            const savedUser = localStorage.getItem('current_user');
-            const savedUserId = localStorage.getItem('user_id');
-            const savedRole = localStorage.getItem('user_role');
+            // 显示连接状态
+            showStatus('正在连接到学习数据库...', 'loading');
             
-            if (savedUser && savedUserId) {
-                appState.currentUser = savedUser;
-                appState.userId = savedUserId;
-                appState.isTeacher = (savedRole === 'teacher');
+            try {
+                // 测试数据库连接
+                const { error: testError } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
                 
-                if (appState.isTeacher) {
-                    showTeacherMenu();
+                if (testError) {
+                    console.error('数据库连接失败:', testError);
+                    showStatus(`数据库连接失败: ${testError.message}<br>请点击"测试连接"检查数据库配置`, 'error');
                 } else {
-                    // 从数据库加载学生的单词
-                    appState.userWords = await loadUserWordsFromDB();
-                    document.getElementById('student-welcome').textContent = `🎓 欢迎，${savedUser}！`;
-                    showStudentMenu();
+                    showStatus('✅ 数据库连接成功！请输入用户名登录', 'success');
+                    
+                    // 检查是否有已登录用户
+                    const savedUser = localStorage.getItem('current_user');
+                    const savedUserId = localStorage.getItem('user_id');
+                    const savedRole = localStorage.getItem('user_role');
+                    
+                    if (savedUser && savedUserId) {
+                        appState.currentUser = savedUser;
+                        appState.userId = savedUserId;
+                        appState.isTeacher = (savedRole === 'teacher');
+                        
+                        if (appState.isTeacher) {
+                            showTeacherMenu();
+                        } else {
+                            // 从数据库加载学生的单词
+                            appState.userWords = await loadUserWordsFromDB();
+                            document.getElementById('student-welcome').textContent = `🎓 欢迎，${savedUser}！`;
+                            showStudentMenu();
+                        }
+                    }
                 }
+            } catch (error) {
+                console.error('初始化错误:', error);
+                showStatus(`系统初始化失败: ${error.message}`, 'error');
             }
             
             // 绑定回车键
