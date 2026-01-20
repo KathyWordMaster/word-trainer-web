@@ -30,6 +30,7 @@
         .message.success { background: #d4edda; color: #155724; }
         .message.error { background: #f8d7da; color: #721c24; }
         .message.info { background: #d1ecf1; color: #0c5460; }
+        #word-input { display: block; margin: 20px auto; }
     </style>
 </head>
 <body>
@@ -61,14 +62,14 @@
                 <h2 style="text-align: center; margin-bottom: 20px;">👩‍🏫 教师控制台</h2>
                 
                 <div style="text-align: center; margin: 20px 0;">
-                    <button class="btn" onclick="showUploadWords()">上传单词</button>
-                    <button class="btn btn-blue" onclick="showAllStudents()">查看学生</button>
-                    <button class="btn" onclick="showStatistics()">查看统计</button>
-                    <button class="btn btn-red" onclick="logout()">退出</button>
+                    <button class="btn" id="btn-upload-words">上传单词</button>
+                    <button class="btn btn-blue" id="btn-view-students">查看学生</button>
+                    <button class="btn" id="btn-view-stats">查看统计</button>
+                    <button class="btn btn-red" id="btn-logout-teacher">退出</button>
                 </div>
                 
                 <div id="teacher-content">
-                    <!-- 内容动态加载 -->
+                    <p style="text-align: center;">正在加载...</p>
                 </div>
             </div>
 
@@ -77,13 +78,13 @@
                 <h2 style="text-align: center; margin-bottom: 20px;" id="student-name">🎓 学生界面</h2>
                 
                 <div style="text-align: center; margin: 20px 0;">
-                    <button class="btn" onclick="startLearning()">开始学习</button>
-                    <button class="btn btn-blue" onclick="showMyProgress()">我的进度</button>
-                    <button class="btn btn-red" onclick="logout()">退出</button>
+                    <button class="btn" id="btn-start-learning">开始学习</button>
+                    <button class="btn btn-blue" id="btn-my-progress">我的进度</button>
+                    <button class="btn btn-red" id="btn-logout-student">退出</button>
                 </div>
                 
                 <div id="student-content">
-                    <!-- 内容动态加载 -->
+                    <p style="text-align: center;">正在加载...</p>
                 </div>
             </div>
         </div>
@@ -100,10 +101,41 @@ let currentUser = null;
 let isTeacher = false;
 let trainingWords = [];
 let currentWordIndex = 0;
+let isCardFlipped = false;
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('页面加载完成');
+    
+    // 绑定教师按钮事件
+    document.getElementById('btn-upload-words')?.addEventListener('click', showUploadWords);
+    document.getElementById('btn-view-students')?.addEventListener('click', showAllStudents);
+    document.getElementById('btn-view-stats')?.addEventListener('click', showStatistics);
+    document.getElementById('btn-logout-teacher')?.addEventListener('click', logout);
+    
+    // 绑定学生按钮事件
+    document.getElementById('btn-start-learning')?.addEventListener('click', startLearning);
+    document.getElementById('btn-my-progress')?.addEventListener('click', showMyProgress);
+    document.getElementById('btn-logout-student')?.addEventListener('click', logout);
+    
+    // 测试回车键登录
+    document.getElementById('username')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') login();
+    });
+    
+    // 检查自动登录
+    checkAutoLogin();
+    
+    // 测试连接
+    testConnection();
+});
 
 // ========== 页面切换 ==========
 function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+    console.log('切换到屏幕:', screenId);
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+    });
     document.getElementById(screenId).classList.add('active');
 }
 
@@ -113,6 +145,26 @@ function showMessage(elementId, message, type = 'info') {
     element.textContent = message;
     element.className = `message ${type}`;
     element.style.display = 'block';
+}
+
+// ========== 自动登录检查 ==========
+async function checkAutoLogin() {
+    const savedUser = localStorage.getItem('current_user');
+    const savedRole = localStorage.getItem('user_role');
+    
+    if (savedUser) {
+        currentUser = savedUser;
+        isTeacher = (savedRole === 'teacher');
+        
+        if (isTeacher) {
+            showScreen('teacher-screen');
+            loadTeacherDashboard();
+        } else {
+            showScreen('student-screen');
+            document.getElementById('student-name').textContent = `🎓 ${savedUser} 的学习界面`;
+            loadStudentDashboard();
+        }
+    }
 }
 
 // ========== 数据库测试 ==========
@@ -205,6 +257,7 @@ async function login() {
 
 // ========== 教师功能 ==========
 async function loadTeacherDashboard() {
+    console.log('加载教师面板');
     const content = document.getElementById('teacher-content');
     content.innerHTML = '<p style="text-align: center;">加载中...</p>';
     
@@ -238,6 +291,7 @@ async function loadTeacherDashboard() {
             </div>
             <div style="text-align: center; margin-top: 20px;">
                 <p>💡 您已经上传了 ${totalWords} 个单词，有 ${totalStudents} 个学生在学习</p>
+                <button class="btn" style="margin-top: 20px;" onclick="showUploadWords()">上传新单词</button>
             </div>
         `;
     } catch (error) {
@@ -246,6 +300,7 @@ async function loadTeacherDashboard() {
 }
 
 function showUploadWords() {
+    console.log('显示上传单词界面');
     const content = document.getElementById('teacher-content');
     content.innerHTML = `
         <h3>📝 上传单词</h3>
@@ -263,7 +318,10 @@ apple 苹果"></textarea>
 }
 
 async function uploadWords() {
-    const input = document.getElementById('word-input').value.trim();
+    console.log('开始上传单词');
+    const textarea = document.getElementById('word-input');
+    const input = textarea ? textarea.value.trim() : '';
+    
     if (!input) {
         alert('请输入单词');
         return;
@@ -334,6 +392,7 @@ async function uploadWords() {
 }
 
 async function showAllStudents() {
+    console.log('显示学生列表');
     const content = document.getElementById('teacher-content');
     content.innerHTML = '<p>加载学生列表...</p>';
     
@@ -374,6 +433,7 @@ async function showAllStudents() {
 }
 
 async function showStatistics() {
+    console.log('显示统计');
     const content = document.getElementById('teacher-content');
     content.innerHTML = '<p>加载统计数据...</p>';
     
@@ -417,6 +477,7 @@ async function showStatistics() {
 
 // ========== 学生功能 ==========
 async function loadStudentDashboard() {
+    console.log('加载学生面板');
     const content = document.getElementById('student-content');
     content.innerHTML = '<p style="text-align:center;">加载中...</p>';
     
@@ -451,6 +512,7 @@ async function loadStudentDashboard() {
             </div>
             <div style="text-align:center; margin-top:20px;">
                 <p>💡 点击"开始学习"按钮开始训练</p>
+                <button class="btn" style="margin-top: 20px;" onclick="startLearning()">开始学习</button>
             </div>
         `;
     } catch (error) {
@@ -459,6 +521,7 @@ async function loadStudentDashboard() {
 }
 
 function startLearning() {
+    console.log('开始学习');
     if (trainingWords.length === 0) {
         alert('还没有单词可以学习');
         return;
@@ -477,6 +540,7 @@ function startLearning() {
 }
 
 function showTrainingScreen() {
+    console.log('显示训练界面，当前索引:', currentWordIndex);
     if (currentWordIndex >= trainingWords.length) {
         endTraining();
         return;
@@ -503,6 +567,7 @@ function showTrainingScreen() {
 }
 
 function flipCard() {
+    console.log('翻转卡片');
     const front = document.getElementById('card-front');
     const back = document.getElementById('card-back');
     const card = document.getElementById('word-card');
@@ -519,6 +584,7 @@ function flipCard() {
 }
 
 async function markWord(status) {
+    console.log('标记单词状态:', status);
     const word = trainingWords[currentWordIndex];
     
     try {
@@ -549,11 +615,13 @@ async function markWord(status) {
 }
 
 function skipWord() {
+    console.log('跳过单词');
     currentWordIndex++;
     showTrainingScreen();
 }
 
 function endTraining() {
+    console.log('训练结束');
     const mastered = trainingWords.filter(w => w.status === 'mastered').length;
     const total = trainingWords.length;
     const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
@@ -563,11 +631,13 @@ function endTraining() {
 }
 
 function showMyProgress() {
+    console.log('显示我的进度');
     loadStudentDashboard();
 }
 
 // ========== 退出登录 ==========
 function logout() {
+    console.log('退出登录');
     if (confirm('确定要退出吗？')) {
         currentUser = null;
         isTeacher = false;
@@ -578,28 +648,21 @@ function logout() {
     }
 }
 
-// ========== 自动登录 ==========
-window.onload = async function() {
-    const savedUser = localStorage.getItem('current_user');
-    const savedRole = localStorage.getItem('user_role');
-    
-    if (savedUser) {
-        currentUser = savedUser;
-        isTeacher = (savedRole === 'teacher');
-        
-        if (isTeacher) {
-            showScreen('teacher-screen');
-            loadTeacherDashboard();
-        } else {
-            showScreen('student-screen');
-            document.getElementById('student-name').textContent = `🎓 ${savedUser} 的学习界面`;
-            loadStudentDashboard();
-        }
-    } else {
-        // 测试数据库连接
-        testConnection();
-    }
-};
+// ========== 全局函数导出（用于onclick） ==========
+// 确保所有函数都能在全局作用域访问
+window.login = login;
+window.testConnection = testConnection;
+window.showUploadWords = showUploadWords;
+window.showAllStudents = showAllStudents;
+window.showStatistics = showStatistics;
+window.startLearning = startLearning;
+window.showMyProgress = showMyProgress;
+window.logout = logout;
+window.flipCard = flipCard;
+window.markWord = markWord;
+window.skipWord = skipWord;
+window.uploadWords = uploadWords;
+window.loadTeacherDashboard = loadTeacherDashboard;
 </script>
 </body>
 </html>
