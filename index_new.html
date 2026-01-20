@@ -268,7 +268,7 @@ const appState = {
     isCardFlipped: false,
     teacherId: 'kathy151',
     selectedGroupId: null,
-    selectedWords: []  // 用于批量操作
+    selectedWords: []
 };
 
 // ========== 工具函数 ==========
@@ -441,7 +441,7 @@ async function initializeTeacherGroups() {
     }
 }
 
-// 同步分组单词给学生 - 修复版
+// ==================== 修复：同步分组单词给学生 ====================
 async function syncGroupWordsToStudent(studentId) {
     try {
         console.log(`开始为 ${studentId} 同步分组单词...`);
@@ -458,19 +458,33 @@ async function syncGroupWordsToStudent(studentId) {
         }
         
         if (!studentGroups || studentGroups.length === 0) {
-            console.log(`学生 ${studentId} 没有加入任何分组`);
-            // 如果没有分组，使用旧的同步方式
-            return await syncTeacherWordsToStudent(studentId);
+            console.log(`学生 ${studentId} 没有加入任何分组，无法同步单词`);
+            showAlert('您还没有被分配到任何分组，请联系老师将您添加到分组中', 'warning');
+            return 0;
         }
         
         const groupIds = studentGroups.map(g => g.group_id);
         console.log(`学生 ${studentId} 的分组ID:`, groupIds);
         
-        // 获取分组内的单词
+        // 获取分组信息（用于显示）
+        const { data: groupInfo, error: groupInfoError } = await dbClient
+            .from('groups')
+            .select('id, name')
+            .in('id', groupIds);
+        
+        if (groupInfoError) {
+            console.error('获取分组信息错误:', groupInfoError);
+        }
+        
+        const groupNames = groupInfo?.map(g => g.name) || [];
+        console.log(`学生 ${studentId} 在分组:`, groupNames);
+        
+        // 获取分组内的单词（仅限学生所在的分组）
         const { data: groupWords, error: wordsError } = await dbClient
             .from('words')
             .select('*')
-            .in('group_id', groupIds);
+            .in('group_id', groupIds)
+            .eq('teacher_id', appState.teacherId);
         
         if (wordsError) {
             console.error('获取分组单词错误:', wordsError);
@@ -478,8 +492,8 @@ async function syncGroupWordsToStudent(studentId) {
         }
         
         if (!groupWords || groupWords.length === 0) {
-            console.log(`分组中没有单词`);
-            showAlert('分组中没有单词，请联系老师上传单词', 'info');
+            console.log(`学生 ${studentId} 的分组中没有单词`);
+            showAlert('您所在的分组中还没有单词，请联系老师上传单词', 'info');
             return 0;
         }
         
@@ -498,7 +512,7 @@ async function syncGroupWordsToStudent(studentId) {
         
         const existingWordIds = new Set(existingRecords?.map(r => r.word_id) || []);
         
-        // 准备新单词记录
+        // 准备新单词记录（只包括学生所在分组的单词）
         const newRecords = groupWords
             .filter(word => !existingWordIds.has(word.id))
             .map(word => ({
@@ -540,63 +554,27 @@ async function syncGroupWordsToStudent(studentId) {
                     }
                 }
             }
-            console.log(`成功为 ${studentId} 同步了 ${newRecords.length} 个新单词`);
-            return newRecords.length; // 返回同步的单词数
+            
+            console.log(`成功为 ${studentId} 同步了 ${newRecords.length} 个新单词，来自分组: ${groupNames.join(', ')}`);
+            
+            // 显示同步成功的消息
+            if (newRecords.length > 0) {
+                const message = `✅ 已为您同步 ${newRecords.length} 个新单词\n📁 来自分组：${groupNames.join(', ')}`;
+                showAlert(message, 'success');
+            }
+            
+            return newRecords.length;
         } else {
             console.log(`没有需要同步的新单词`);
+            // 显示分组信息
+            const message = `📚 您已同步所有分组单词\n📁 所在分组：${groupNames.join(', ')}\n📖 单词总数：${groupWords.length}`;
+            showAlert(message, 'info');
             return 0;
         }
         
     } catch (error) {
         console.error('同步分组单词错误:', error);
-        // 如果分组同步失败，尝试旧方式
-        return await syncTeacherWordsToStudent(studentId);
-    }
-}
-
-// 旧版本兼容：同步教师单词给学生
-async function syncTeacherWordsToStudent(studentId) {
-    try {
-        // 获取教师所有单词
-        const { data: teacherWords, error: wordsError } = await dbClient
-            .from('words')
-            .select('*')
-            .eq('teacher_id', appState.teacherId);
-        
-        if (wordsError || !teacherWords) return 0;
-        
-        // 检查学生是否已有这些单词
-        const { data: existingRecords } = await dbClient
-            .from('study_records')
-            .select('word_id')
-            .eq('student_id', studentId);
-        
-        const existingWordIds = new Set(existingRecords?.map(r => r.word_id) || []);
-        
-        // 准备新单词记录
-        const newRecords = teacherWords
-            .filter(word => !existingWordIds.has(word.id))
-            .map(word => ({
-                student_id: studentId,
-                word_id: word.id,
-                english: word.english,
-                chinese: word.chinese,
-                status: 'new',
-                review_count: 0,
-                added_date: new Date().toISOString(),
-                group_id: word.group_id
-            }));
-        
-        if (newRecords.length > 0) {
-            await dbClient.from('study_records').insert(newRecords);
-            console.log(`为 ${studentId} 同步了 ${newRecords.length} 个新单词`);
-            return newRecords.length;
-        }
-        
-        return 0;
-        
-    } catch (error) {
-        console.error('同步单词错误:', error);
+        showAlert(`同步失败：${error.message}`, 'error');
         return 0;
     }
 }
@@ -997,7 +975,6 @@ async function deleteGroup(groupId, groupName) {
 }
 
 function uploadWordsToGroup(groupId) {
-    // 保存当前选中的分组ID到全局状态
     appState.selectedGroupId = groupId;
     showUploadWords();
 }
@@ -1005,24 +982,20 @@ function uploadWordsToGroup(groupId) {
 // ========== 教师功能 ==========
 async function loadTeacherDashboard() {
     try {
-        // 获取单词总数
         const { data: wordsData } = await dbClient
             .from('words')
             .select('count')
             .eq('teacher_id', appState.teacherId);
         
-        // 获取学生总数
         const { data: studentsData } = await dbClient
             .from('users')
             .select('count')
             .eq('is_teacher', false);
         
-        // 获取学习记录
         const { data: recordsData } = await dbClient
             .from('study_records')
             .select('*');
         
-        // 获取活跃学生（最近7天有学习记录）
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const { data: activeData } = await dbClient
@@ -1030,7 +1003,6 @@ async function loadTeacherDashboard() {
             .select('student_id')
             .gte('last_reviewed', sevenDaysAgo.toISOString());
         
-        // 更新统计显示
         document.getElementById('total-words').textContent = wordsData?.[0]?.count || 0;
         document.getElementById('total-students').textContent = studentsData?.[0]?.count || 0;
         
@@ -1040,7 +1012,6 @@ async function loadTeacherDashboard() {
         const activeStudents = new Set(activeData?.map(r => r.student_id) || []).size;
         document.getElementById('active-students').textContent = activeStudents;
         
-        // 加载教师主界面
         const content = document.getElementById('teacher-content');
         content.innerHTML = `
             <div style="text-align: center; padding: 20px;">
@@ -1095,6 +1066,7 @@ function showUploadWords() {
                 <p style="color: #666; margin: 8px 0;">• 每行一个单词，格式：英文 中文</p>
                 <p style="color: #666; margin: 8px 0;">• 支持短语：如 "good morning" 早上好</p>
                 <p style="color: #666; margin: 8px 0;">• 上传后所选分组的学生自动同步这些单词</p>
+                <p style="color: #666; margin: 8px 0;">• 系统会自动跳过重复单词</p>
                 <p style="color: #666; margin: 8px 0;">• 示例：hello 你好，world 世界</p>
             </div>
             
@@ -1115,6 +1087,7 @@ computer 电脑
                             <tr style="background: #f5f5f5;">
                                 <th style="padding: 10px;">英文</th>
                                 <th style="padding: 10px;">中文</th>
+                                <th style="padding: 10px;">状态</th>
                             </tr>
                         </thead>
                         <tbody id="preview-table-body"></tbody>
@@ -1141,7 +1114,6 @@ computer 电脑
         </div>
     `;
     
-    // 加载分组选择器
     setTimeout(loadGroupSelector, 100);
 }
 
@@ -1167,7 +1139,6 @@ async function loadGroupSelector() {
             return;
         }
         
-        // 如果有之前选中的分组，使用它
         const selectedGroupId = appState.selectedGroupId || groups[0].id;
         
         let html = `<select id="selected-group" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">`;
@@ -1217,9 +1188,7 @@ async function createNewGroupDirectly(groupName) {
         
         if (error) throw error;
         
-        // 更新选择器
         loadGroupSelector();
-        // 保存选中的分组
         appState.selectedGroupId = newGroup.id;
         
         showAlert(`分组 "${groupName}" 创建成功`, 'success');
@@ -1242,24 +1211,38 @@ function previewUploadWords() {
     previewBody.innerHTML = '';
     
     let validCount = 0;
+    let duplicateCount = 0;
+    const seenWords = new Set();
     
     lines.forEach((line, index) => {
         const trimmed = line.trim();
         if (!trimmed) return;
         
-        // 跳过注释
         if (trimmed.startsWith('#')) return;
         
-        // 解析单词
         const parts = trimmed.split(/\s+/);
         if (parts.length >= 2) {
             const english = parts.slice(0, -1).join(' ');
             const chinese = parts[parts.length - 1];
+            const englishLower = english.toLowerCase();
+            
+            const isDuplicate = seenWords.has(englishLower);
+            if (isDuplicate) {
+                duplicateCount++;
+            } else {
+                seenWords.add(englishLower);
+            }
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td style="padding: 8px;"><strong>${english}</strong></td>
+                <td style="padding: 8px;">
+                    <strong>${english}</strong>
+                    ${isDuplicate ? '<span style="color: #F44336; margin-left: 10px;">(重复)</span>' : ''}
+                </td>
                 <td style="padding: 8px;">${chinese}</td>
+                <td style="padding: 8px; color: ${isDuplicate ? '#F44336' : '#4CAF50'}">
+                    ${isDuplicate ? '❌ 重复' : '✅ 有效'}
+                </td>
             `;
             previewBody.appendChild(row);
             validCount++;
@@ -1267,15 +1250,20 @@ function previewUploadWords() {
     });
     
     if (validCount > 0) {
-        document.getElementById('preview-count').textContent = validCount;
+        document.getElementById('preview-count').textContent = `${validCount} 个（${duplicateCount} 个重复）`;
         document.getElementById('upload-preview').style.display = 'block';
-        showAlert(`找到 ${validCount} 个有效单词`, 'success');
+        
+        let message = `找到 ${validCount} 个有效单词`;
+        if (duplicateCount > 0) {
+            message += `，其中 ${duplicateCount} 个重复（上传时会自动跳过）`;
+        }
+        showAlert(message, duplicateCount > 0 ? 'warning' : 'success');
     } else {
         showAlert('未找到有效单词，请检查格式', 'error');
     }
 }
 
-// 教师上传单词函数 - 修复版
+// ==================== 最终版：上传单词函数（自动去重） ====================
 async function submitUploadWords() {
     const input = document.getElementById('words-input').value.trim();
     if (!input) {
@@ -1283,7 +1271,6 @@ async function submitUploadWords() {
         return;
     }
     
-    // 获取选中的分组
     const groupSelect = document.getElementById('selected-group');
     const selectedGroupId = groupSelect ? groupSelect.value : null;
     
@@ -1293,7 +1280,7 @@ async function submitUploadWords() {
     }
     
     const lines = input.split('\n');
-    const wordsToUpload = [];
+    const rawWords = [];
     
     lines.forEach(line => {
         const trimmed = line.trim();
@@ -1304,22 +1291,19 @@ async function submitUploadWords() {
         if (parts.length >= 2) {
             const english = parts.slice(0, -1).join(' ');
             const chinese = parts[parts.length - 1];
-            wordsToUpload.push({
-                teacher_id: appState.teacherId,
+            rawWords.push({
                 english: english,
-                chinese: chinese,
-                group_id: selectedGroupId
+                chinese: chinese
             });
         }
     });
     
-    if (wordsToUpload.length === 0) {
+    if (rawWords.length === 0) {
         showAlert('没有有效单词可上传', 'error');
         return;
     }
     
     try {
-        // 获取分组信息
         const { data: group, error: groupError } = await dbClient
             .from('groups')
             .select('name')
@@ -1328,83 +1312,208 @@ async function submitUploadWords() {
         
         if (groupError) throw groupError;
         
-        // 插入单词并获取返回的ID
-        const { data: insertedWords, error: wordsError } = await dbClient
+        // 获取该分组中已存在的单词
+        const { data: existingWords, error: fetchError } = await dbClient
             .from('words')
-            .insert(wordsToUpload)
-            .select('id, english, chinese');
+            .select('english')
+            .eq('teacher_id', appState.teacherId)
+            .eq('group_id', selectedGroupId);
         
-        if (wordsError) throw wordsError;
+        if (fetchError) throw fetchError;
         
-        // 获取分组学生
+        const existingWordSet = new Set();
+        if (existingWords) {
+            existingWords.forEach(word => {
+                existingWordSet.add(word.english.toLowerCase());
+            });
+        }
+        
+        // 筛选出新的、不重复的单词
+        const uniqueNewWords = [];
+        const duplicateWords = [];
+        const seenInThisBatch = new Set();
+        
+        rawWords.forEach(word => {
+            const englishLower = word.english.toLowerCase();
+            
+            if (seenInThisBatch.has(englishLower)) {
+                duplicateWords.push(word.english);
+                return;
+            }
+            
+            if (existingWordSet.has(englishLower)) {
+                duplicateWords.push(word.english);
+                return;
+            }
+            
+            uniqueNewWords.push({
+                teacher_id: appState.teacherId,
+                english: word.english,
+                chinese: word.chinese,
+                group_id: selectedGroupId
+            });
+            
+            seenInThisBatch.add(englishLower);
+        });
+        
+        console.log(`总单词数: ${rawWords.length}`);
+        console.log(`新单词数: ${uniqueNewWords.length}`);
+        console.log(`重复单词数: ${duplicateWords.length}`);
+        
+        if (uniqueNewWords.length === 0) {
+            if (duplicateWords.length > 0) {
+                const message = `所有 ${duplicateWords.length} 个单词都已经存在于分组 "${group.name}" 中\n\n重复的单词：\n${duplicateWords.slice(0, 20).join(', ')}${duplicateWords.length > 20 ? `\n...等 ${duplicateWords.length} 个单词` : ''}`;
+                showAlert(message, 'warning');
+            }
+            return;
+        }
+        
+        // 分批上传
+        const BATCH_SIZE = 100;
+        let totalUploaded = 0;
+        let uploadResult = '';
+        
+        for (let i = 0; i < uniqueNewWords.length; i += BATCH_SIZE) {
+            const batch = uniqueNewWords.slice(i, i + BATCH_SIZE);
+            const progress = Math.round(((i + batch.length) / uniqueNewWords.length) * 100);
+            uploadResult = `正在上传... ${progress}% (${Math.min(i + batch.length, uniqueNewWords.length)}/${uniqueNewWords.length})`;
+            
+            document.getElementById('upload-result').innerHTML = `
+                <div class="message-box message-info">
+                    <h4>📤 正在上传单词</h4>
+                    <p>${uploadResult}</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+            `;
+            
+            const { data: insertedWords, error: wordsError } = await dbClient
+                .from('words')
+                .insert(batch)
+                .select('id, english, chinese');
+            
+            if (wordsError) {
+                if (wordsError.code === '23505') {
+                    console.warn('批量插入有重复，改为逐个插入...');
+                    for (const word of batch) {
+                        try {
+                            const { error: singleError } = await dbClient
+                                .from('words')
+                                .insert(word);
+                            if (!singleError || singleError.code === '23505') {
+                                totalUploaded++;
+                            }
+                        } catch (err) {
+                            console.error('单个插入错误:', err);
+                        }
+                    }
+                } else {
+                    throw wordsError;
+                }
+            } else {
+                totalUploaded += insertedWords?.length || 0;
+            }
+        }
+        
+        // 获取分组学生并创建学习记录
         const { data: groupStudents, error: studentsError } = await dbClient
             .from('group_students')
             .select('student_id')
             .eq('group_id', selectedGroupId);
         
-        if (studentsError) throw studentsError;
-        
-        // 为分组内的学生创建学习记录
         let createdRecords = 0;
-        if (groupStudents && groupStudents.length > 0 && insertedWords) {
-            console.log(`为 ${groupStudents.length} 名学生创建学习记录...`);
+        if (groupStudents && groupStudents.length > 0 && totalUploaded > 0) {
+            const { data: allNewWords, error: fetchNewError } = await dbClient
+                .from('words')
+                .select('id, english, chinese')
+                .eq('teacher_id', appState.teacherId)
+                .eq('group_id', selectedGroupId)
+                .order('created_at', { ascending: false })
+                .limit(totalUploaded);
             
-            // 为每个学生创建每个单词的学习记录
-            for (const student of groupStudents) {
-                const studyRecords = insertedWords.map(word => ({
-                    student_id: student.student_id,
-                    word_id: word.id,
-                    english: word.english,
-                    chinese: word.chinese,
-                    status: 'new',
-                    review_count: 0,
-                    group_id: selectedGroupId,
-                    added_date: new Date().toISOString()
-                }));
+            if (!fetchNewError && allNewWords) {
+                console.log(`为 ${groupStudents.length} 名学生创建学习记录...`);
                 
-                // 检查学生是否已有这些单词
-                const { data: existingRecords } = await dbClient
-                    .from('study_records')
-                    .select('word_id')
-                    .eq('student_id', student.student_id);
-                
-                const existingWordIds = new Set(existingRecords?.map(r => r.word_id) || []);
-                const newRecords = studyRecords.filter(record => !existingWordIds.has(record.word_id));
-                
-                if (newRecords.length > 0) {
-                    const { error: insertError } = await dbClient
-                        .from('study_records')
-                        .insert(newRecords);
+                for (const student of groupStudents) {
+                    const studyRecords = allNewWords.map(word => ({
+                        student_id: student.student_id,
+                        word_id: word.id,
+                        english: word.english,
+                        chinese: word.chinese,
+                        status: 'new',
+                        review_count: 0,
+                        group_id: selectedGroupId,
+                        added_date: new Date().toISOString()
+                    }));
                     
-                    if (insertError) {
-                        console.error(`为学生 ${student.student_id} 插入记录错误:`, insertError);
-                    } else {
-                        createdRecords += newRecords.length;
+                    const { data: existingRecords } = await dbClient
+                        .from('study_records')
+                        .select('word_id')
+                        .eq('student_id', student.student_id);
+                    
+                    const existingWordIds = new Set(existingRecords?.map(r => r.word_id) || []);
+                    const newRecords = studyRecords.filter(record => !existingWordIds.has(record.word_id));
+                    
+                    if (newRecords.length > 0) {
+                        const STUDY_BATCH_SIZE = 50;
+                        for (let j = 0; j < newRecords.length; j += STUDY_BATCH_SIZE) {
+                            const studyBatch = newRecords.slice(j, j + STUDY_BATCH_SIZE);
+                            const { error: insertError } = await dbClient
+                                .from('study_records')
+                                .insert(studyBatch);
+                            
+                            if (!insertError) {
+                                createdRecords += studyBatch.length;
+                            }
+                        }
                     }
                 }
             }
-            console.log(`成功为 ${groupStudents.length} 名学生创建了 ${createdRecords} 条学习记录`);
         }
         
-        // 显示成功消息
-        document.getElementById('upload-result').innerHTML = `
+        // 显示最终结果
+        let resultHtml = `
             <div class="message-box message-success">
                 <h4>✅ 上传成功！</h4>
-                <p>成功上传 ${wordsToUpload.length} 个单词到分组 <strong>"${group.name}"</strong></p>
-                <p>已为 ${groupStudents?.length || 0} 名分组学生创建了学习记录</p>
-                <p>学生下次登录时会自动看到这些单词</p>
+                <p>成功上传 <strong>${totalUploaded}</strong> 个新单词到分组 <strong>"${group.name}"</strong></p>
+        `;
+        
+        if (duplicateWords.length > 0) {
+            resultHtml += `
+                <p>自动跳过了 <strong>${duplicateWords.length}</strong> 个重复单词</p>
+                <details style="margin-top: 10px;">
+                    <summary>查看重复单词列表（前20个）</summary>
+                    <div style="max-height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                        ${duplicateWords.slice(0, 20).map(word => `<div>${word}</div>`).join('')}
+                        ${duplicateWords.length > 20 ? `<div>...等 ${duplicateWords.length} 个重复单词</div>` : ''}
+                    </div>
+                </details>
+            `;
+        }
+        
+        if (createdRecords > 0) {
+            resultHtml += `<p>已为 ${groupStudents?.length || 0} 名分组学生创建了 ${createdRecords} 条学习记录</p>`;
+        }
+        
+        resultHtml += `
                 <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                    <strong>提示：</strong>如果学生没有立即看到单词，请让他们点击"🔄 立即同步"按钮
+                    <strong>提示：</strong>学生下次登录时会自动看到这些单词，或点击"🔄 立即同步"按钮
                 </p>
             </div>
         `;
         
-        // 清空输入框
+        document.getElementById('upload-result').innerHTML = resultHtml;
+        
         document.getElementById('words-input').value = '';
         document.getElementById('upload-preview').style.display = 'none';
         
-        // 更新统计
-        setTimeout(loadTeacherDashboard, 2000);
+        setTimeout(() => {
+            loadTeacherDashboard();
+            if (typeof loadGroupList === 'function') {
+                loadGroupList();
+            }
+        }, 2000);
         
     } catch (error) {
         console.error('上传错误:', error);
@@ -1412,8 +1521,9 @@ async function submitUploadWords() {
             <div class="message-box message-error">
                 <h4>❌ 上传失败</h4>
                 <p>错误：${error.message}</p>
+                ${error.code === '23505' ? '<p>原因：有重复的英文单词</p>' : ''}
                 <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                    请检查网络连接后重试
+                    建议：检查是否有重复单词，或分批上传
                 </p>
             </div>
         `;
@@ -1467,7 +1577,6 @@ async function showAllStudents() {
             return;
         }
         
-        // 获取每个学生的学习数据
         let html = `
             <h3 style="color: #333; margin-bottom: 20px;">📋 所有学生列表（共 ${students.length} 人）</h3>
             <div style="overflow-x: auto;">
@@ -1488,7 +1597,6 @@ async function showAllStudents() {
         `;
         
         for (const student of students) {
-            // 获取该学生的学习记录
             const { data: records } = await dbClient
                 .from('study_records')
                 .select('*')
@@ -1541,7 +1649,6 @@ async function showAllStudents() {
     }
 }
 
-// 删除学生函数
 async function deleteStudent(studentId) {
     if (studentId === appState.currentUser) {
         showAlert('不能删除当前登录的用户', 'error');
@@ -1553,7 +1660,6 @@ async function deleteStudent(studentId) {
     }
     
     try {
-        // 删除学生（级联删除学习记录和分组关联记录）
         const { error } = await dbClient
             .from('users')
             .delete()
@@ -1563,11 +1669,7 @@ async function deleteStudent(studentId) {
         if (error) throw error;
         
         showAlert(`学生 "${studentId}" 已成功删除！`, 'success');
-        
-        // 重新加载学生列表
         showAllStudents();
-        
-        // 更新统计
         setTimeout(loadTeacherDashboard, 1000);
         
     } catch (error) {
@@ -1581,7 +1683,6 @@ async function viewStudentDetail(studentId) {
     content.innerHTML = `<p style="text-align: center;">加载 ${studentId} 的学习数据...</p>`;
     
     try {
-        // 获取学生的学习记录
         const { data: records, error } = await dbClient
             .from('study_records')
             .select('*')
@@ -1692,7 +1793,6 @@ async function showLearningProgress() {
     content.innerHTML = '<p style="text-align: center;">加载学习进度...</p>';
     
     try {
-        // 获取所有学生的学习数据
         const { data: students } = await dbClient
             .from('users')
             .select('username')
@@ -1715,14 +1815,12 @@ async function showLearningProgress() {
             }
         }
         
-        // 统计总体数据
         const total = allRecords.length;
         const mastered = allRecords.filter(r => r.status === 'mastered').length;
         const learning = allRecords.filter(r => r.status === 'learning').length;
         const review = allRecords.filter(r => r.status === 'new').length;
         const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
         
-        // 获取最难的单词（掌握率最低）
         const wordStats = {};
         allRecords.forEach(record => {
             if (!wordStats[record.english]) {
@@ -1851,9 +1949,7 @@ function showWordManagement() {
         </div>
     `;
     
-    // 重置选择状态
     appState.selectedWords = [];
-    
     setTimeout(loadWordManagement, 100);
 }
 
@@ -1880,7 +1976,6 @@ async function loadWordManagement() {
             return;
         }
         
-        // 获取分组信息用于显示分组名称
         const { data: groups } = await dbClient
             .from('groups')
             .select('id, name')
@@ -1952,8 +2047,6 @@ async function loadWordManagement() {
         `;
         
         content.innerHTML = html;
-        
-        // 更新选择计数
         updateSelectionCount();
         
     } catch (error) {
@@ -1963,7 +2056,6 @@ async function loadWordManagement() {
     }
 }
 
-// 单词选择功能
 function toggleWordSelection(wordId, isSelected) {
     if (isSelected) {
         if (!appState.selectedWords.includes(wordId)) {
@@ -2018,7 +2110,6 @@ function updateSelectionCount() {
         batchDeleteBtn.innerHTML = `<span>🗑️ 批量删除 (${count})</span>`;
     }
     
-    // 高亮选中的行
     const checkboxes = document.querySelectorAll('.word-checkbox');
     checkboxes.forEach(checkbox => {
         const wordId = checkbox.value;
@@ -2033,7 +2124,6 @@ function updateSelectionCount() {
     });
 }
 
-// 批量删除单词
 async function batchDeleteWords() {
     const count = appState.selectedWords.length;
     if (count === 0) {
@@ -2046,7 +2136,6 @@ async function batchDeleteWords() {
     }
     
     try {
-        // 检查是否有学生正在学习这些单词
         const { data: studyRecords, error: checkError } = await dbClient
             .from('study_records')
             .select('word_id')
@@ -2062,7 +2151,6 @@ async function batchDeleteWords() {
             }
         }
         
-        // 批量删除单词
         let deletedCount = 0;
         const batchSize = 50;
         
@@ -2076,7 +2164,6 @@ async function batchDeleteWords() {
             
             if (error) {
                 console.error(`批量删除错误 (批次 ${Math.floor(i/batchSize) + 1}):`, error);
-                // 尝试逐个删除
                 for (const wordId of batch) {
                     try {
                         await dbClient
@@ -2095,14 +2182,8 @@ async function batchDeleteWords() {
         }
         
         showAlert(`成功删除 ${deletedCount} 个单词！`, 'success');
-        
-        // 清空选择
         appState.selectedWords = [];
-        
-        // 重新加载单词列表
         loadWordManagement();
-        
-        // 更新统计
         setTimeout(loadTeacherDashboard, 1000);
         
     } catch (error) {
@@ -2111,13 +2192,12 @@ async function batchDeleteWords() {
     }
 }
 
-// 编辑单词函数
 function editWord(wordId, english, chinese) {
     const newEnglish = prompt('修改英文单词：', english);
-    if (newEnglish === null) return; // 用户取消
+    if (newEnglish === null) return;
     
     const newChinese = prompt('修改中文意思：', chinese);
-    if (newChinese === null) return; // 用户取消
+    if (newChinese === null) return;
     
     if (!newEnglish.trim() || !newChinese.trim()) {
         showAlert('英文和中文都不能为空', 'error');
@@ -2140,7 +2220,6 @@ async function updateWord(wordId, english, chinese) {
         
         if (error) throw error;
         
-        // 同时更新学生的学习记录中的单词信息
         await dbClient
             .from('study_records')
             .update({
@@ -2150,8 +2229,6 @@ async function updateWord(wordId, english, chinese) {
             .eq('word_id', wordId);
         
         showAlert(`单词 "${english}" 已更新！`, 'success');
-        
-        // 重新加载单词列表
         loadWordManagement();
         
     } catch (error) {
@@ -2160,15 +2237,12 @@ async function updateWord(wordId, english, chinese) {
     }
 }
 
-// 删除单个单词函数
 async function deleteWord(wordId, englishWord) {
-    // 确认是否删除
     if (!confirm(`确定要删除单词 "${englishWord}" 吗？\n\n⚠️ 警告：删除后，所有学生学习该单词的记录也将被删除，且无法恢复！`)) {
         return;
     }
     
     try {
-        // 首先检查是否有学生正在学习这个单词
         const { data: studyRecords, error: checkError } = await dbClient
             .from('study_records')
             .select('student_id')
@@ -2184,7 +2258,6 @@ async function deleteWord(wordId, englishWord) {
             }
         }
         
-        // 删除单词（级联删除学习记录）
         const { error } = await dbClient
             .from('words')
             .delete()
@@ -2193,26 +2266,21 @@ async function deleteWord(wordId, englishWord) {
         
         if (error) throw error;
         
-        // 从界面中移除该行
         const row = document.getElementById(`word-row-${wordId}`);
         if (row) {
-            row.style.backgroundColor = '#f8d7da'; // 红色背景表示已删除
+            row.style.backgroundColor = '#f8d7da';
             row.style.transition = 'opacity 0.5s';
             row.style.opacity = '0.5';
             
             setTimeout(() => {
                 row.remove();
-                // 显示成功消息
                 showAlert(`单词 "${englishWord}" 已成功删除！`, 'success');
-                
-                // 更新单词总数显示
                 setTimeout(() => {
                     loadTeacherDashboard();
                 }, 1000);
             }, 500);
         } else {
             showAlert(`单词 "${englishWord}" 已成功删除！`, 'success');
-            // 重新加载单词列表
             loadWordManagement();
         }
         
@@ -2285,7 +2353,6 @@ function copyShareLink() {
     showAlert('链接已复制到剪贴板！', 'success');
 }
 
-// 快速操作函数
 function quickUpload() {
     showUploadWords();
 }
@@ -2328,7 +2395,6 @@ async function showStudentActivity() {
             return;
         }
         
-        // 按学生分组统计
         const studentActivity = {};
         recentRecords.forEach(record => {
             if (!studentActivity[record.student_id]) {
@@ -2337,7 +2403,6 @@ async function showStudentActivity() {
             studentActivity[record.student_id]++;
         });
         
-        // 转换为数组并排序
         const activityArray = Object.entries(studentActivity)
             .map(([student, count]) => ({ student, count }))
             .sort((a, b) => b.count - a.count);
@@ -2397,10 +2462,8 @@ async function showStudentActivity() {
 // ========== 学生功能 ==========
 async function loadStudentDashboard() {
     try {
-        // 先同步单词
         const syncedCount = await syncGroupWordsToStudent(appState.currentUser);
         
-        // 获取学生的学习记录
         const { data: records, error } = await dbClient
             .from('study_records')
             .select('*')
@@ -2413,7 +2476,6 @@ async function loadStudentDashboard() {
         
         appState.userWords = records || [];
         
-        // 如果没有单词，显示提示
         if (records.length === 0) {
             document.getElementById('student-content').innerHTML = `
                 <div style="text-align: center; padding: 40px;">
@@ -2430,7 +2492,6 @@ async function loadStudentDashboard() {
                 </div>
             `;
             
-            // 更新统计显示为0
             document.getElementById('my-total-words').textContent = '0';
             document.getElementById('my-mastered').textContent = '0';
             document.getElementById('my-learning').textContent = '0';
@@ -2441,21 +2502,38 @@ async function loadStudentDashboard() {
             return;
         }
         
-        // 获取学生所在的分组
         const { data: studentGroups, error: groupsError } = await dbClient
             .from('group_students')
             .select('group_id')
             .eq('student_id', appState.currentUser);
         
         let groupNames = [];
+        let groupDetails = [];
         if (studentGroups && studentGroups.length > 0) {
-            // 获取分组名称
             const groupIds = studentGroups.map(g => g.group_id);
             const { data: groups } = await dbClient
                 .from('groups')
-                .select('name')
+                .select('id, name')
                 .in('id', groupIds);
             
+            for (const group of groups) {
+                const { data: groupWords } = await dbClient
+                    .from('words')
+                    .select('count')
+                    .eq('group_id', group.id);
+                
+                const { data: myGroupRecords } = await dbClient
+                    .from('study_records')
+                    .select('*')
+                    .eq('student_id', appState.currentUser)
+                    .eq('group_id', group.id);
+                
+                groupDetails.push({
+                    name: group.name,
+                    totalWords: groupWords?.[0]?.count || 0,
+                    myWords: myGroupRecords?.length || 0
+                });
+            }
             groupNames = groups?.map(g => g.name) || [];
         }
         
@@ -2465,7 +2543,6 @@ async function loadStudentDashboard() {
         const review = records?.filter(r => r.status === 'new').length || 0;
         const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
         
-        // 更新显示
         document.getElementById('my-total-words').textContent = total;
         document.getElementById('my-mastered').textContent = mastered;
         document.getElementById('my-learning').textContent = learning;
@@ -2473,7 +2550,6 @@ async function loadStudentDashboard() {
         document.getElementById('my-progress-percent').textContent = `${progress}%`;
         document.getElementById('my-progress-bar').style.width = `${progress}%`;
         
-        // 加载学生主界面
         const content = document.getElementById('student-content');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -2489,20 +2565,21 @@ async function loadStudentDashboard() {
                     </div>
                 ` : ''}
                 
-                ${groupNames.length > 0 ? `
+                ${groupDetails.length > 0 ? `
                     <div class="stats-card" style="margin-bottom: 20px;">
-                        <h3 style="color: #333; margin-bottom: 15px;">📚 我的分组</h3>
-                        <p style="color: #666;">您加入了 ${groupNames.length} 个分组：</p>
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;">
-                            ${groupNames.map(name => `
-                                <div style="background: #4CAF50; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.9em;">
-                                    ${name}
+                        <h3 style="color: #333; margin-bottom: 15px;">📚 我的分组详情</h3>
+                        ${groupDetails.map(detail => `
+                            <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <strong style="font-size: 1.1em;">${detail.name}</strong>
+                                    <span style="color: #666;">分组</span>
                                 </div>
-                            `).join('')}
-                        </div>
-                        <p style="color: #666; margin-top: 15px; font-size: 0.9em;">
-                            您可以学习这些分组中的所有单词
-                        </p>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>分组单词总数: <strong>${detail.totalWords}</strong></span>
+                                    <span>我的单词数: <strong>${detail.myWords}</strong></span>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 ` : `
                     <div class="stats-card" style="margin-bottom: 20px;">
@@ -2565,7 +2642,6 @@ async function loadStudentDashboard() {
     }
 }
 
-// 立即同步单词函数 - 修复版
 async function manualSyncWords() {
     try {
         showAlert('正在同步单词...', 'info');
@@ -2577,7 +2653,6 @@ async function manualSyncWords() {
             showAlert('您已经同步了所有分组单词', 'info');
         }
         
-        // 重新加载数据
         await loadStudentDashboard();
         
     } catch (error) {
@@ -2592,11 +2667,9 @@ function startWordTraining() {
         return;
     }
     
-    // 准备训练单词（优先新单词和学习中的单词）
     const needLearn = appState.userWords.filter(w => w.status === 'new' || w.status === 'learning');
     const wordsToLearn = needLearn.length > 0 ? needLearn : [...appState.userWords];
     
-    // 打乱顺序
     wordsToLearn.sort(() => Math.random() - 0.5);
     appState.trainingWords = wordsToLearn;
     appState.currentWordIndex = 0;
@@ -2611,7 +2684,6 @@ function startDailyTraining() {
         return;
     }
     
-    // 今日建议学习20个单词，优先新单词
     const newWords = appState.userWords.filter(w => w.status === 'new');
     const learningWords = appState.userWords.filter(w => w.status === 'learning');
     const reviewWords = appState.userWords.filter(w => w.status === 'mastered');
@@ -2631,7 +2703,6 @@ function startDailyTraining() {
         dailyWords = appState.userWords.slice(0, Math.min(20, appState.userWords.length));
     }
     
-    // 打乱顺序
     dailyWords.sort(() => Math.random() - 0.5);
     appState.trainingWords = dailyWords;
     appState.currentWordIndex = 0;
@@ -2646,7 +2717,6 @@ function startReviewTraining() {
         return;
     }
     
-    // 只复习弱项（新单词和学习中的单词）
     const weakWords = appState.userWords.filter(w => w.status === 'new' || w.status === 'learning');
     
     if (weakWords.length === 0) {
@@ -2654,7 +2724,6 @@ function startReviewTraining() {
         return;
     }
     
-    // 打乱顺序
     weakWords.sort(() => Math.random() - 0.5);
     appState.trainingWords = weakWords;
     appState.currentWordIndex = 0;
@@ -2745,7 +2814,6 @@ async function markTrainingWord(status) {
     const word = appState.trainingWords[appState.currentWordIndex];
     
     try {
-        // 更新数据库
         await dbClient
             .from('study_records')
             .update({
@@ -2756,12 +2824,10 @@ async function markTrainingWord(status) {
             .eq('student_id', appState.currentUser)
             .eq('word_id', word.word_id || word.id);
         
-        // 更新本地状态
         word.status = status;
         word.review_count = (word.review_count || 0) + 1;
         word.last_reviewed = new Date().toISOString();
         
-        // 下一个单词
         appState.currentWordIndex++;
         appState.isCardFlipped = false;
         
@@ -2808,8 +2874,6 @@ function finishTraining() {
     }
     
     alert(message);
-    
-    // 重新加载面板
     loadStudentDashboard();
 }
 
@@ -3041,7 +3105,6 @@ function showMyAchievements() {
     const mastered = appState.userWords.filter(w => w.status === 'mastered').length;
     const totalReviews = appState.userWords.reduce((sum, word) => sum + (word.review_count || 0), 0);
     
-    // 计算连续学习天数
     let consecutiveDays = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -3056,14 +3119,13 @@ function showMyAchievements() {
         for (let i = 0; i < dates.length; i++) {
             if (dates[i] === currentDate) {
                 consecutiveDays++;
-                currentDate -= 24 * 60 * 60 * 1000; // 前一天
+                currentDate -= 24 * 60 * 60 * 1000;
             } else {
                 break;
             }
         }
     }
     
-    // 计算成就
     const achievements = [];
     if (total >= 100) achievements.push('🏆 单词大师：学习100个单词');
     else if (total >= 50) achievements.push('⭐ 单词能手：学习50个单词');
@@ -3151,7 +3213,6 @@ function handleLogout() {
 window.onload = async function() {
     console.log('🚀 Kathy单词训练系统启动');
     
-    // 检查自动登录
     const savedUser = localStorage.getItem('kathy_current_user');
     const savedRole = localStorage.getItem('kathy_user_role');
     
@@ -3169,11 +3230,9 @@ window.onload = async function() {
             loadStudentDashboard();
         }
     } else {
-        // 测试数据库连接
         testDatabase();
     }
     
-    // 绑定回车键登录
     document.getElementById('username')?.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') handleLogin();
     });
