@@ -26,7 +26,7 @@
         input[type="text"], textarea, input[type="password"], select { width: 100%; max-width: 500px; padding: 16px; margin: 12px 0; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; }
         textarea { height: 200px; font-family: monospace; resize: vertical; }
         
-        /* 修复单词框样式 - 确保长文本自适应 */
+        /* 智能字体大小单词框 */
         .word-card { 
             background: white; 
             border: 4px solid #4CAF50; 
@@ -49,7 +49,6 @@
         .word-card-content {
             width: 100%;
             text-align: center;
-            font-size: clamp(1.8em, 5vw, 2.8em);
             word-break: break-word;
             hyphens: auto;
             overflow-wrap: break-word;
@@ -59,6 +58,13 @@
             justify-content: center;
             padding: 10px;
         }
+        
+        /* 智能字体大小调整 */
+        .font-size-xl { font-size: 2.8em; }
+        .font-size-lg { font-size: 2.2em; }
+        .font-size-md { font-size: 1.8em; }
+        .font-size-sm { font-size: 1.5em; }
+        .font-size-xs { font-size: 1.2em; }
         
         .word-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
         .word-card.flipped { background: linear-gradient(135deg, #E8F5E9, #C8E6C9); border-color: #2E7D32; }
@@ -102,6 +108,32 @@
         
         .content-padding { padding-top: 100px; padding-bottom: 30px; }
         
+        /* 今日完成激励样式 */
+        .celebration-banner {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #856404;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* 继续训练选项 */
+        .continue-options {
+            background: #E3F2FD;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .batch-controls { background: #f8f9fa; border-radius: 10px; padding: 15px; margin: 20px 0; display: flex; gap: 10px; align-items: center; }
+        
         @media (max-width: 768px) {
             .two-column { grid-template-columns: 1fr; }
             .container { margin: 10px; border-radius: 15px; }
@@ -113,9 +145,11 @@
                 margin: 20px auto;
                 padding: 15px;
             }
-            .word-card-content {
-                font-size: clamp(1.5em, 6vw, 2.2em);
-            }
+            .font-size-xl { font-size: 2.2em; }
+            .font-size-lg { font-size: 1.8em; }
+            .font-size-md { font-size: 1.5em; }
+            .font-size-sm { font-size: 1.3em; }
+            .font-size-xs { font-size: 1.1em; }
             .btn { padding: 12px 20px; margin: 8px; font-size: 15px; }
             .card-grid { grid-template-columns: 1fr 1fr; }
             .content-padding { padding-top: 90px; }
@@ -127,12 +161,12 @@
                 height: 200px; 
                 padding: 10px;
             }
-            .word-card-content {
-                font-size: clamp(1.3em, 7vw, 1.8em);
-            }
+            .font-size-xl { font-size: 1.8em; }
+            .font-size-lg { font-size: 1.5em; }
+            .font-size-md { font-size: 1.3em; }
+            .font-size-sm { font-size: 1.1em; }
+            .font-size-xs { font-size: 0.9em; }
         }
-        
-        .batch-controls { background: #f8f9fa; border-radius: 10px; padding: 15px; margin: 20px 0; display: flex; gap: 10px; align-items: center; }
     </style>
 </head>
 <body>
@@ -338,6 +372,10 @@
                         <div style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
                             <h3 style="text-align: center; margin-bottom: 30px; color: #333;">选择训练内容</h3>
                             
+                            <div id="daily-training-options" style="margin-bottom: 40px;">
+                                <!-- 动态加载今日训练选项 -->
+                            </div>
+                            
                             <div style="margin-bottom: 40px;">
                                 <button class="btn" onclick="startAllWordsTraining()" 
                                         style="width: 100%; padding: 25px; font-size: 18px; margin-bottom: 15px;">
@@ -346,11 +384,11 @@
                                     <div style="color: #666; font-size: 14px;">训练所有已同步的单词</div>
                                 </button>
                                 
-                                <button class="btn btn-blue" onclick="startDailyTraining()" 
+                                <button class="btn btn-blue" onclick="startReviewTraining()" 
                                         style="width: 100%; padding: 25px; font-size: 18px;">
-                                    <div style="font-size: 24px; margin-bottom: 10px;">📅</div>
-                                    <div style="font-weight: bold; margin-bottom: 5px;">今日训练</div>
-                                    <div style="color: #666; font-size: 14px;">每天10个单词，科学记忆</div>
+                                    <div style="font-size: 24px; margin-bottom: 10px;">🔄</div>
+                                    <div style="font-weight: bold; margin-bottom: 5px;">复习弱项</div>
+                                    <div style="color: #666; font-size: 14px;">重点复习未掌握单词</div>
                                 </button>
                             </div>
                         </div>
@@ -534,7 +572,9 @@ const appState = {
     isCardFlipped: false,
     teacherId: 'kathy151',
     selectedGroupId: null,
-    selectedWords: []
+    selectedWords: [],
+    dailyTrainingProgress: 0,
+    lastTrainingDate: null
 };
 
 // ========== 工具函数 ==========
@@ -566,6 +606,16 @@ function showAlert(message, type = 'info') {
     
     document.body.appendChild(alertBox);
     setTimeout(() => alertBox.remove(), 3000);
+}
+
+// ========== 智能字体大小调整 ==========
+function getFontSizeClass(text) {
+    const length = text.length;
+    if (length <= 10) return 'font-size-xl';
+    if (length <= 15) return 'font-size-lg';
+    if (length <= 20) return 'font-size-md';
+    if (length <= 25) return 'font-size-sm';
+    return 'font-size-xs';
 }
 
 // ========== 数据库连接测试 ==========
@@ -651,6 +701,11 @@ async function handleLogin() {
         localStorage.setItem('kathy_current_user', username);
         localStorage.setItem('kathy_user_role', appState.isTeacher ? 'teacher' : 'student');
         
+        // 加载今日训练状态
+        if (!appState.isTeacher) {
+            await loadDailyTrainingState();
+        }
+        
         // 跳转到对应界面
         setTimeout(() => {
             if (appState.isTeacher) {
@@ -663,6 +718,45 @@ async function handleLogin() {
     } catch (error) {
         console.error('登录错误:', error);
         showMessage('login-message', `登录失败：${error.message}`, 'error');
+    }
+}
+
+// 加载今日训练状态
+async function loadDailyTrainingState() {
+    try {
+        const today = new Date().toDateString();
+        const storedDate = localStorage.getItem(`kathy_daily_date_${appState.currentUser}`);
+        
+        if (storedDate === today) {
+            const progress = parseInt(localStorage.getItem(`kathy_daily_progress_${appState.currentUser}`)) || 0;
+            appState.dailyTrainingProgress = progress;
+            appState.lastTrainingDate = storedDate;
+        } else {
+            // 新的一天，重置进度
+            appState.dailyTrainingProgress = 0;
+            appState.lastTrainingDate = today;
+            localStorage.setItem(`kathy_daily_date_${appState.currentUser}`, today);
+            localStorage.setItem(`kathy_daily_progress_${appState.currentUser}`, '0');
+        }
+    } catch (error) {
+        console.error('加载训练状态错误:', error);
+    }
+}
+
+// 保存今日训练进度
+function saveDailyTrainingProgress(wordsStudied) {
+    try {
+        const today = new Date().toDateString();
+        const currentProgress = appState.dailyTrainingProgress + wordsStudied;
+        appState.dailyTrainingProgress = currentProgress;
+        
+        localStorage.setItem(`kathy_daily_date_${appState.currentUser}`, today);
+        localStorage.setItem(`kathy_daily_progress_${appState.currentUser}`, currentProgress.toString());
+        
+        return currentProgress;
+    } catch (error) {
+        console.error('保存训练进度错误:', error);
+        return appState.dailyTrainingProgress;
     }
 }
 
@@ -2224,6 +2318,9 @@ async function loadWordManagementPage() {
                 <button class="btn btn-red" onclick="batchDeleteWords()" id="batch-delete-btn" disabled>
                     <span>🗑️ 批量删除 (0)</span>
                 </button>
+                <button class="btn" onclick="deleteAllWordsInGroup()" id="group-delete-btn" disabled>
+                    <span>🗑️ 删除分组所有单词</span>
+                </button>
                 <span style="margin-left: auto; color: #666;" id="selected-count">已选择 0 个单词</span>
             </div>
             
@@ -2327,6 +2424,11 @@ async function loadWordManagementList() {
         
         content.innerHTML = html;
         updateSelectionCount();
+        
+        // 如果有分组，启用分组删除按钮
+        if (groups && groups.length > 0) {
+            document.getElementById('group-delete-btn').disabled = false;
+        }
         
     } catch (error) {
         console.error('加载单词库错误:', error);
@@ -2467,6 +2569,133 @@ async function batchDeleteWords() {
     } catch (error) {
         console.error('批量删除单词错误:', error);
         showAlert(`删除失败: ${error.message}`, 'error');
+    }
+}
+
+async function deleteAllWordsInGroup() {
+    try {
+        const { data: groups, error } = await dbClient
+            .from('groups')
+            .select('id, name')
+            .eq('teacher_id', appState.teacherId);
+        
+        if (error) throw error;
+        
+        if (!groups || groups.length === 0) {
+            showAlert('没有分组', 'error');
+            return;
+        }
+        
+        let groupOptions = '';
+        groups.forEach(group => {
+            groupOptions += `<option value="${group.id}">${group.name}</option>`;
+        });
+        
+        const groupSelect = `
+            <div style="margin-bottom: 15px;">
+                <label>选择要删除的分组：</label>
+                <select id="delete-group-select" style="width: 100%; padding: 10px; margin-top: 5px;">
+                    ${groupOptions}
+                </select>
+            </div>
+        `;
+        
+        const confirmation = `
+            确定要删除该分组的所有单词吗？\n\n
+            ⚠️ 警告：删除后，所有学生学习这些单词的记录也将被删除，且无法恢复！\n\n
+            ${groupSelect}
+        `;
+        
+        // 创建自定义确认对话框
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        `;
+        
+        dialog.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+                <h3 style="color: #333; margin-bottom: 20px;">删除分组所有单词</h3>
+                <div style="margin-bottom: 20px;">
+                    <p>确定要删除该分组的所有单词吗？</p>
+                    <p style="color: #F44336; font-weight: bold;">⚠️ 警告：删除后，所有学生学习这些单词的记录也将被删除，且无法恢复！</p>
+                    ${groupSelect}
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn" onclick="this.parentElement.parentElement.parentElement.remove()">取消</button>
+                    <button class="btn btn-red" id="confirm-group-delete">确定删除</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        document.getElementById('confirm-group-delete').onclick = async () => {
+            const groupId = document.getElementById('delete-group-select').value;
+            const groupName = groups.find(g => g.id === groupId).name;
+            
+            try {
+                // 检查是否有学生学习这些单词
+                const { data: groupWords } = await dbClient
+                    .from('words')
+                    .select('id')
+                    .eq('group_id', groupId)
+                    .eq('teacher_id', appState.teacherId);
+                
+                if (!groupWords || groupWords.length === 0) {
+                    showAlert(`分组 "${groupName}" 中没有单词`, 'info');
+                    dialog.remove();
+                    return;
+                }
+                
+                const wordIds = groupWords.map(w => w.id);
+                
+                const { data: studyRecords } = await dbClient
+                    .from('study_records')
+                    .select('word_id')
+                    .in('word_id', wordIds);
+                
+                const studentCount = studyRecords?.length || 0;
+                
+                if (studentCount > 0) {
+                    const finalConfirm = confirm(`⚠️ 有 ${studentCount} 条学生学习记录关联到这些单词！\n\n删除后，这些学习记录将全部丢失。\n\n确定要继续删除分组 "${groupName}" 的所有 ${wordIds.length} 个单词吗？`);
+                    if (!finalConfirm) {
+                        dialog.remove();
+                        return;
+                    }
+                }
+                
+                // 删除单词
+                const { error } = await dbClient
+                    .from('words')
+                    .delete()
+                    .eq('group_id', groupId)
+                    .eq('teacher_id', appState.teacherId);
+                
+                if (error) throw error;
+                
+                showAlert(`成功删除分组 "${groupName}" 的所有单词！`, 'success');
+                dialog.remove();
+                loadWordManagementList();
+                
+            } catch (error) {
+                console.error('删除分组单词错误:', error);
+                showAlert(`删除失败: ${error.message}`, 'error');
+                dialog.remove();
+            }
+        };
+        
+    } catch (error) {
+        console.error('准备删除分组单词错误:', error);
+        showAlert(`操作失败: ${error.message}`, 'error');
     }
 }
 
@@ -2756,6 +2985,10 @@ async function loadStudentDashboardSimple() {
             r.last_reviewed && new Date(r.last_reviewed) >= today
         ) || [];
         
+        const target = 10; // 每日目标单词数
+        const todayProgress = Math.min(todayRecords.length, target);
+        const progressPercent = (todayProgress / target) * 100;
+        
         const todayStatus = document.getElementById('today-status');
         todayStatus.innerHTML = `
             <div class="stats-card">
@@ -2766,7 +2999,7 @@ async function loadStudentDashboardSimple() {
                         <div class="label">今日已学</div>
                     </div>
                     <div class="stat-card">
-                        <div class="number">${Math.max(0, 10 - todayRecords.length)}</div>
+                        <div class="number">${Math.max(0, target - todayRecords.length)}</div>
                         <div class="label">建议学习</div>
                     </div>
                     <div class="stat-card">
@@ -2774,8 +3007,17 @@ async function loadStudentDashboardSimple() {
                         <div class="label">今日掌握</div>
                     </div>
                 </div>
-                ${todayRecords.length >= 10 ? 
-                    '<p style="color: #4CAF50; text-align: center; margin-top: 15px;">🎉 今日任务已完成！</p>' : 
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #666;">今日进度</span>
+                        <span style="color: #4CAF50; font-weight: bold;">${todayProgress}/${target}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                </div>
+                ${todayRecords.length >= target ? 
+                    '<div class="celebration-banner">🎉 太棒了！今日任务已完成！明天再来继续学习吧！</div>' : 
                     '<p style="color: #FF9800; text-align: center; margin-top: 15px;">💪 继续努力！</p>'}
             </div>
         `;
@@ -2896,6 +3138,103 @@ async function manualSyncWords() {
 
 function showTrainingOptions() {
     showScreen('training-options-screen');
+    loadTrainingOptions();
+}
+
+// 加载训练选项
+async function loadTrainingOptions() {
+    const optionsDiv = document.getElementById('daily-training-options');
+    
+    // 检查今日训练状态
+    const today = new Date().toDateString();
+    const storedDate = localStorage.getItem(`kathy_daily_date_${appState.currentUser}`);
+    const todayProgress = parseInt(localStorage.getItem(`kathy_daily_progress_${appState.currentUser}`)) || 0;
+    
+    if (storedDate === today && todayProgress >= 10) {
+        // 今日已完成训练，提供继续选项
+        optionsDiv.innerHTML = `
+            <div class="continue-options">
+                <h4 style="color: #1565C0; margin-bottom: 15px;">📅 今日训练</h4>
+                <p style="color: #666; margin-bottom: 20px;">您今天已经学习了 ${todayProgress} 个单词！</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <button class="btn" onclick="startNewDailyTraining()" 
+                            style="padding: 20px; font-size: 16px;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">🆕</div>
+                        <div style="font-weight: bold; margin-bottom: 5px;">新单词训练</div>
+                        <div style="color: #666; font-size: 14px;">学习新的单词</div>
+                    </button>
+                    
+                    <button class="btn btn-blue" onclick="continueReviewTraining()" 
+                            style="padding: 20px; font-size: 16px;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">🔄</div>
+                        <div style="font-weight: bold; margin-bottom: 5px;">继续复习</div>
+                        <div style="color: #666; font-size: 14px;">复习今日学过的单词</div>
+                    </button>
+                </div>
+                <p style="color: #4CAF50; text-align: center; margin-top: 15px; font-weight: bold;">
+                    🎉 太棒了！您已经完成今日基础任务！
+                </p>
+            </div>
+        `;
+    } else {
+        // 今日未完成训练
+        optionsDiv.innerHTML = `
+            <button class="btn btn-blue" onclick="startDailyTraining()" 
+                    style="width: 100%; padding: 25px; font-size: 18px; margin-bottom: 15px;">
+                <div style="font-size: 24px; margin-bottom: 10px;">📅</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">今日训练</div>
+                <div style="color: #666; font-size: 14px;">每天10个单词，科学记忆</div>
+                ${todayProgress > 0 ? `<div style="color: #4CAF50; margin-top: 5px;">今日进度: ${todayProgress}/10</div>` : ''}
+            </button>
+        `;
+    }
+}
+
+function startNewDailyTraining() {
+    // 重置今日训练状态
+    localStorage.setItem(`kathy_daily_progress_${appState.currentUser}`, '0');
+    startDailyTraining();
+}
+
+function continueReviewTraining() {
+    // 从今日学过的单词中选择复习
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayWords = appState.userWords.filter(word => 
+        word.last_reviewed && new Date(word.last_reviewed) >= today
+    );
+    
+    if (todayWords.length === 0) {
+        showAlert('今天还没有学习任何单词', 'info');
+        startNewDailyTraining();
+        return;
+    }
+    
+    // 优先复习今天学习中或未掌握的单词
+    const reviewWords = todayWords.sort((a, b) => {
+        // 未掌握优先
+        if (a.status === 'new' && b.status !== 'new') return -1;
+        if (a.status !== 'new' && b.status === 'new') return 1;
+        if (a.status === 'learning' && b.status === 'mastered') return -1;
+        if (a.status === 'mastered' && b.status === 'learning') return 1;
+        
+        // 复习次数少的优先
+        return (a.review_count || 0) - (b.review_count || 0);
+    }).slice(0, 10);
+    
+    if (reviewWords.length === 0) {
+        showAlert('今天没有需要复习的单词', 'info');
+        startNewDailyTraining();
+        return;
+    }
+    
+    reviewWords.sort(() => Math.random() - 0.5);
+    appState.trainingWords = reviewWords;
+    appState.currentWordIndex = 0;
+    appState.isCardFlipped = false;
+    
+    startTrainingSession();
 }
 
 function startAllWordsTraining() {
@@ -2904,8 +3243,27 @@ function startAllWordsTraining() {
         return;
     }
     
+    // 加载保存的训练进度
+    const savedProgress = localStorage.getItem(`kathy_all_training_${appState.currentUser}`);
+    let startIndex = 0;
+    
+    if (savedProgress) {
+        try {
+            const progress = JSON.parse(savedProgress);
+            const today = new Date().toDateString();
+            if (progress.date === today && progress.index > 0) {
+                const continueTraining = confirm(`发现上次的训练进度（${progress.index}/${progress.total}），是否继续？`);
+                if (continueTraining) {
+                    startIndex = progress.index;
+                }
+            }
+        } catch (e) {
+            console.error('解析训练进度错误:', e);
+        }
+    }
+    
     appState.trainingWords = [...appState.userWords].sort(() => Math.random() - 0.5);
-    appState.currentWordIndex = 0;
+    appState.currentWordIndex = startIndex;
     appState.isCardFlipped = false;
     
     startTrainingSession();
@@ -2917,23 +3275,62 @@ function startDailyTraining() {
         return;
     }
     
+    const todayProgress = appState.dailyTrainingProgress || 0;
+    const target = 10;
+    
+    // 如果今日已完成基础训练，询问是否继续
+    if (todayProgress >= target) {
+        const continueTraining = confirm(`您今天已经学习了 ${todayProgress} 个单词！是否继续学习更多单词？`);
+        if (!continueTraining) {
+            showAlert('您已经完成今日基础训练，很棒！', 'success');
+            return;
+        }
+    }
+    
+    // 智能选择今日单词
     const newWords = appState.userWords.filter(w => w.status === 'new');
     const learningWords = appState.userWords.filter(w => w.status === 'learning');
-    const reviewWords = appState.userWords.filter(w => w.status === 'mastered');
+    const masteredWords = appState.userWords.filter(w => w.status === 'mastered');
     
     let dailyWords = [];
+    const wordsNeeded = Math.max(5, target - todayProgress);
+    
+    // 优先选择新单词（50%）
     if (newWords.length > 0) {
-        dailyWords = dailyWords.concat(newWords.slice(0, Math.min(newWords.length, 10)));
-    }
-    if (learningWords.length > 0 && dailyWords.length < 20) {
-        dailyWords = dailyWords.concat(learningWords.slice(0, Math.min(learningWords.length, 20 - dailyWords.length)));
-    }
-    if (reviewWords.length > 0 && dailyWords.length < 20) {
-        dailyWords = dailyWords.concat(reviewWords.slice(0, Math.min(reviewWords.length, 20 - dailyWords.length)));
+        const newCount = Math.min(Math.ceil(wordsNeeded * 0.5), newWords.length);
+        dailyWords = dailyWords.concat(newWords.slice(0, newCount));
     }
     
-    if (dailyWords.length === 0) {
-        dailyWords = appState.userWords.slice(0, Math.min(20, appState.userWords.length));
+    // 其次是学习中单词（30%）
+    if (learningWords.length > 0 && dailyWords.length < wordsNeeded) {
+        const learningCount = Math.min(Math.ceil(wordsNeeded * 0.3), learningWords.length);
+        dailyWords = dailyWords.concat(learningWords.slice(0, learningCount));
+    }
+    
+    // 最后是已掌握单词需要复习的（20%）
+    if (masteredWords.length > 0 && dailyWords.length < wordsNeeded) {
+        const reviewCount = wordsNeeded - dailyWords.length;
+        // 选择复习次数最少或最久没复习的单词
+        const sortedMastered = masteredWords.sort((a, b) => {
+            const aDate = a.last_reviewed ? new Date(a.last_reviewed) : new Date(0);
+            const bDate = b.last_reviewed ? new Date(b.last_reviewed) : new Date(0);
+            return aDate - bDate;
+        });
+        dailyWords = dailyWords.concat(sortedMastered.slice(0, reviewCount));
+    }
+    
+    // 如果还不够，随机补充
+    if (dailyWords.length < wordsNeeded) {
+        const allWords = [...appState.userWords];
+        const remaining = wordsNeeded - dailyWords.length;
+        const usedIds = new Set(dailyWords.map(w => w.id || w.word_id));
+        
+        for (let i = 0; i < allWords.length && dailyWords.length < wordsNeeded; i++) {
+            const word = allWords[i];
+            if (!usedIds.has(word.id || word.word_id)) {
+                dailyWords.push(word);
+            }
+        }
     }
     
     dailyWords.sort(() => Math.random() - 0.5);
@@ -2983,18 +3380,22 @@ function showTrainingScreenSimple() {
     
     document.getElementById('training-progress').textContent = `${current}/${total}`;
     
+    // 智能调整字体大小
+    const englishFontSize = getFontSizeClass(word.english);
+    const chineseFontSize = getFontSizeClass(word.chinese);
+    
     const content = document.getElementById('training-content');
     content.innerHTML = `
         <div style="text-align: center;">
             <!-- 单词卡片 -->
             <div class="word-card ${appState.isCardFlipped ? 'flipped' : ''}" onclick="flipTrainingCard()">
-                <div class="word-card-content">
+                <div class="word-card-content ${appState.isCardFlipped ? chineseFontSize : englishFontSize}">
                     ${appState.isCardFlipped ? `
-                        <div style="color: #2E7D32; font-size: 2em; word-break: break-word;">
+                        <div style="color: #2E7D32; word-break: break-word;">
                             ${word.chinese}
                         </div>
                     ` : `
-                        <div style="color: #333; font-size: 2.2em; word-break: break-word;">
+                        <div style="color: #333; word-break: break-word;">
                             ${word.english}
                         </div>
                     `}
@@ -3029,9 +3430,14 @@ function showTrainingScreenSimple() {
                     <div>⏭️ 跳过</div>
                 </button>
                 
-                <button class="btn" onclick="showStudentDashboard()" 
+                <button class="btn" onclick="saveTrainingProgress()" 
                         style="flex: 1; padding: 12px; background: #607D8B;">
-                    <div>📋 返回菜单</div>
+                    <div>💾 保存进度</div>
+                </button>
+                
+                <button class="btn" onclick="showStudentDashboard()" 
+                        style="flex: 1; padding: 12px; background: #795548;">
+                    <div>📋 返回</div>
                 </button>
             </div>
             
@@ -3043,26 +3449,45 @@ function showTrainingScreenSimple() {
     `;
 }
 
+// 保存训练进度
+function saveTrainingProgress() {
+    if (appState.trainingWords.length === 0) return;
+    
+    const progress = {
+        date: new Date().toDateString(),
+        index: appState.currentWordIndex,
+        total: appState.trainingWords.length,
+        words: appState.trainingWords.map(w => w.id || w.word_id)
+    };
+    
+    localStorage.setItem(`kathy_all_training_${appState.currentUser}`, JSON.stringify(progress));
+    showAlert('训练进度已保存！', 'success');
+}
+
 function flipTrainingCard() {
-    appState.isCardFlipped = !appState.isCardFlipped;
+    const word = appState.trainingWords[appState.currentWordIndex];
     const card = document.querySelector('.word-card');
     const content = card.querySelector('.word-card-content');
     
     if (appState.isCardFlipped) {
-        card.classList.add('flipped');
+        card.classList.remove('flipped');
+        content.className = 'word-card-content ' + getFontSizeClass(word.english);
         content.innerHTML = `
-            <div style="color: #2E7D32; font-size: 2em; word-break: break-word;">
-                ${appState.trainingWords[appState.currentWordIndex].chinese}
+            <div style="color: #333; word-break: break-word;">
+                ${word.english}
             </div>
         `;
     } else {
-        card.classList.remove('flipped');
+        card.classList.add('flipped');
+        content.className = 'word-card-content ' + getFontSizeClass(word.chinese);
         content.innerHTML = `
-            <div style="color: #333; font-size: 2.2em; word-break: break-word;">
-                ${appState.trainingWords[appState.currentWordIndex].english}
+            <div style="color: #2E7D32; word-break: break-word;">
+                ${word.chinese}
             </div>
         `;
     }
+    
+    appState.isCardFlipped = !appState.isCardFlipped;
 }
 
 // ==================== 修复训练功能 ====================
@@ -3094,6 +3519,11 @@ async function markTrainingWord(status) {
         );
         if (globalIndex !== -1) {
             appState.userWords[globalIndex] = { ...appState.userWords[globalIndex], ...word };
+        }
+        
+        // 更新今日训练进度（仅限每日训练）
+        if (status !== 'skip') {
+            saveDailyTrainingProgress(1);
         }
         
         // 显示反馈
@@ -3140,6 +3570,9 @@ function finishTraining() {
     const learning = appState.trainingWords.filter(w => w.status === 'learning').length;
     const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
     
+    // 清除训练进度
+    localStorage.removeItem(`kathy_all_training_${appState.currentUser}`);
+    
     // 更新学生面板数据
     loadStudentDashboardSimple();
     
@@ -3169,9 +3602,11 @@ function finishTraining() {
                     </div>
                 </div>
             </div>
+            ${appState.dailyTrainingProgress >= 10 ? 
+                '<div class="celebration-banner" style="margin: 20px auto; max-width: 400px;">🎉 太棒了！今日任务已完成！明天再来继续学习吧！</div>' : ''}
             <div style="margin-top: 30px;">
-                <button class="btn" onclick="startWordTraining()" style="margin: 10px;">
-                    继续训练
+                <button class="btn" onclick="startDailyTraining()" style="margin: 10px;">
+                    继续今日训练
                 </button>
                 <button class="btn btn-red" onclick="showStudentDashboard()" style="margin: 10px;">
                     返回主页
@@ -3182,7 +3617,8 @@ function finishTraining() {
 }
 
 function cancelTraining() {
-    if (confirm('确定要结束训练吗？未完成的训练将不会保存进度。')) {
+    if (confirm('确定要结束训练吗？未完成的训练进度可以稍后继续。')) {
+        saveTrainingProgress();
         showStudentDashboard();
     }
 }
@@ -3515,6 +3951,8 @@ function handleLogout() {
         appState.trainingWords = [];
         appState.selectedGroupId = null;
         appState.selectedWords = [];
+        appState.dailyTrainingProgress = 0;
+        appState.lastTrainingDate = null;
         
         localStorage.removeItem('kathy_current_user');
         localStorage.removeItem('kathy_user_role');
