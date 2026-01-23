@@ -2433,40 +2433,84 @@ async function showTeacherDashboard() {
 
 async function loadTeacherDashboard() {
     try {
-        // 使用count获取准确数量，避免1000条限制
-        const { count: wordsCount, error: wordsError } = await dbClient
-            .from('words')
-            .select('*', { count: 'exact', head: true })
-            .eq('teacher_id', appState.teacherId);
+        // 修改：使用正确的count查询语法
+        let wordsCount = 0;
+        let studentsCount = 0;
+        let masteredCount = 0;
         
-        const { count: studentsCount, error: studentsError } = await dbClient
-            .from('users')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_teacher', false);
+        try {
+            // 方法1：使用.count()方法
+            const { data: wordsData, error: wordsError } = await dbClient
+                .from('words')
+                .select('*')
+                .eq('teacher_id', appState.teacherId);
+            
+            if (!wordsError) wordsCount = wordsData?.length || 0;
+            
+        } catch (e) {
+            // 方法2：如果上面的方法失败，尝试另一种方式
+            console.log('尝试方法2获取单词总数');
+            const { data: wordsData } = await dbClient
+                .from('words')
+                .select('id')
+                .eq('teacher_id', appState.teacherId);
+            wordsCount = wordsData?.length || 0;
+        }
         
-        // 获取学习记录数量
-        const { count: masteredCount, error: masteredError } = await dbClient
-            .from('study_records')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'mastered');
+        try {
+            // 获取学生总数
+            const { data: studentsData, error: studentsError } = await dbClient
+                .from('users')
+                .select('id')
+                .eq('is_teacher', false);
+            
+            if (!studentsError) studentsCount = studentsData?.length || 0;
+            
+        } catch (e) {
+            console.log('获取学生总数错误:', e);
+        }
+        
+        try {
+            // 获取已掌握单词数
+            const { data: masteredData, error: masteredError } = await dbClient
+                .from('study_records')
+                .select('id')
+                .eq('status', 'mastered');
+            
+            if (!masteredError) masteredCount = masteredData?.length || 0;
+            
+        } catch (e) {
+            console.log('获取已掌握单词数错误:', e);
+        }
         
         // 获取活跃学生（最近7天有学习记录）
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        let activeStudents = 0;
+        try {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const { data: activeData, error: activeError } = await dbClient
+                .from('study_records')
+                .select('student_id')
+                .gte('last_reviewed', sevenDaysAgo.toISOString());
+            
+            if (!activeError && activeData) {
+                // 使用Set去除重复
+                const uniqueStudents = new Set(activeData.map(r => r.student_id));
+                activeStudents = uniqueStudents.size;
+            }
+            
+        } catch (e) {
+            console.log('获取活跃学生错误:', e);
+        }
         
-        const { data: activeData, error: activeError } = await dbClient
-            .from('study_records')
-            .select('student_id')
-            .gte('last_reviewed', sevenDaysAgo.toISOString())
-            .limit(1000);
-        
-        document.getElementById('total-words').textContent = wordsCount || 0;
-        document.getElementById('total-students').textContent = studentsCount || 0;
-        document.getElementById('mastered-words').textContent = masteredCount || 0;
-        
-        const activeStudents = new Set(activeData?.map(r => r.student_id) || []).size;
+        // 更新统计数字
+        document.getElementById('total-words').textContent = wordsCount;
+        document.getElementById('total-students').textContent = studentsCount;
+        document.getElementById('mastered-words').textContent = masteredCount;
         document.getElementById('active-students').textContent = activeStudents;
         
+        // 更新快速操作内容
         const content = document.getElementById('teacher-content');
         content.innerHTML = `
             <div style="text-align: center; padding: 20px;">
@@ -2485,10 +2529,10 @@ async function loadTeacherDashboard() {
                 
                 <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-top: 30px;">
                     <h4 style="color: #333; margin-bottom: 15px;">💡 系统提示</h4>
-                    <p style="color: #666; margin: 5px 0;">• 已上传 ${wordsCount || 0} 个单词</p>
-                    <p style="color: #666; margin: 5px 0;">• 共有 ${studentsCount || 0} 名学生</p>
+                    <p style="color: #666; margin: 5px 0;">• 已上传 ${wordsCount} 个单词</p>
+                    <p style="color: #666; margin: 5px 0;">• 共有 ${studentsCount} 名学生</p>
                     <p style="color: #666; margin: 5px 0;">• 最近7天 ${activeStudents} 名活跃学生</p>
-                    <p style="color: #666; margin: 5px 0;">• 学生共掌握 ${masteredCount || 0} 个单词</p>
+                    <p style="color: #666; margin: 5px 0;">• 学生共掌握 ${masteredCount} 个单词</p>
                 </div>
             </div>
         `;
@@ -3953,7 +3997,7 @@ async function loadAllStudentsPage() {
                 .select('*')
                 .eq('student_id', student.username);
             
-            const total = totalCount || records?.length || 0;
+            const total = records?.length || 0;
             const mastered = records?.filter(r => r.status === 'mastered').length || 0;
             const learning = records?.filter(r => r.status === 'learning').length || 0;
             const review = records?.filter(r => r.status === 'new').length || 0;
@@ -4008,7 +4052,7 @@ async function viewStudentDetail(studentId) {
         
         if (error) throw error;
         
-        const total = totalCount || records?.length || 0;
+        const total = records?.length || 0;
         const mastered = records?.filter(r => r.status === 'mastered').length || 0;
         const learning = records?.filter(r => r.status === 'learning').length || 0;
         const review = records?.filter(r => r.status === 'new').length || 0;
@@ -4349,10 +4393,10 @@ async function loadWordManagementPage() {
 
 async function loadWordManagementList() {
     try {
-        const { data: words, error, count: totalCount } = await dbClient
+        const { data: words, error } = await dbClient
             .from('words')
-            .select('*', { count: 'exact' })
-            .eq('teacher_id', appState.teacherId)
+            .select('*')
+            .eq('teacher_id', appState.teacherId);
             .order('created_at', { ascending: false });
 
         
@@ -4980,13 +5024,28 @@ async function loadStudentDashboardSimple() {
         await syncGroupWordsToStudent(appState.currentUser);
         
         // 获取学习记录 - 添加排序
-        const { data: records, error, count: totalCount } = await dbClient
+        cconst { data: records, error } = await dbClient
             .from('study_records')
-            .select('*', { count: 'exact' })
+            .select('*')
             .eq('student_id', appState.currentUser)
             .order('last_reviewed', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+            console.error('获取学习记录错误:', error);
+            // 尝试不带排序的查询
+            const { data: records2 } = await dbClient
+                .from('study_records')
+                .select('*')
+                .eq('student_id', appState.currentUser);
+            
+            appState.userWords = records2 || [];
+        } else {
+            appState.userWords = records || [];
+        }
+        
+        // 使用数组长度而不是count
+        const total = appState.userWords.length;
+
         
         appState.userWords = records || [];
         
@@ -5040,7 +5099,7 @@ todayStatus.innerHTML = `
         `;
         
 // 学习进度
-const total = totalCount || records?.length || 0;
+const total = records?.length || 0;
 
 const mastered = records?.filter(r => r.status === 'mastered').length || 0;
 const learning = records?.filter(r => r.status === 'learning').length || 0;
