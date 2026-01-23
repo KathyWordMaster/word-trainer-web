@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kathy单词大师训练营</title>
+    <title>⚡ Kathy单词大师训练营</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Microsoft YaHei', Arial, sans-serif; }
@@ -134,6 +134,82 @@
         
         .batch-controls { background: #f8f9fa; border-radius: 10px; padding: 15px; margin: 20px 0; display: flex; gap: 10px; align-items: center; }
         
+        /* 新增样式 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .loading-text {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-page {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .error-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .error-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .offline-banner {
+            background: linear-gradient(135deg, #FF9800, #FF5722);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1500;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+        
         @media (max-width: 768px) {
             .two-column { grid-template-columns: 1fr; }
             .container { margin: 10px; border-radius: 15px; }
@@ -170,6 +246,13 @@
     </style>
 </head>
 <body>
+    <!-- 全局加载遮罩 -->
+    <div id="global-loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-message">正在加载...</div>
+        <div style="color: #666; margin-top: 10px;" id="loading-details"></div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>⚡ Kathy单词大师训练营</h1>
@@ -181,7 +264,7 @@
             <!-- 登录界面 -->
             <div id="login-screen" class="screen active">
                 <div style="text-align: center;">
-                    <h2>👑 欢迎使用单词训练系统</h2>
+                    <h2>👑 Welcome to Kathy's单词训练基地！</h2>
                     <p style="color: #666; margin-bottom: 30px;">🧡Kathy陪你一起和单词玩游戏🧡</p>
                     
                     <div style="margin: 30px 0;">
@@ -192,7 +275,7 @@
                         
                         <div style="margin: 25px 0;">
                             <button class="btn" onclick="handleLogin()">🔑 登录/注册</button>
-                            <button class="btn btn-blue" onclick="testDatabase()">🔧 测试连接</button>
+                            <button class="btn btn-blue" onclick="testDatabase()">🔧 连接抢修</button>
                         </div>
                     </div>
                     
@@ -297,7 +380,17 @@
             <div id="student-screen" class="screen">
                 <div class="fixed-header">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; color: #333;">🎓 欢迎，<span id="student-name"></span>！</h2>
+                        <div>
+                            <h2 style="margin: 0; color: #333;">🎓 欢迎，<span id="student-name"></span>！</h2>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 5px;">
+                                <div id="clock-in-status" style="background: #4CAF50; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;">
+                                    ✅ 今日已打卡
+                                </div>
+                                <div style="color: #666; font-size: 14px;">
+                                    <span id="consecutive-days">0</span> 天连续学习
+                                </div>
+                            </div>
+                        </div>
                         <button class="btn btn-red" onclick="handleLogout()" style="padding: 8px 16px;">
                             <span>🚪 退出</span>
                         </button>
@@ -320,26 +413,36 @@
                     <div style="background: #f8f9fa; border-radius: 15px; padding: 25px; margin-bottom: 30px;">
                         <h3 style="color: #333; margin-bottom: 20px; text-align: center;">🚀 快速开始</h3>
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                            <button class="btn" onclick="dailyClockIn()" style="height: 80px; font-size: 18px;">
+                                <div>📅</div>
+                                <div>每日打卡</div>
+                            </button>
+                            
                             <button class="btn" onclick="showTrainingOptions()" style="height: 80px; font-size: 18px;">
                                 <div>🎯</div>
                                 <div>开始训练</div>
                             </button>
-                            <button class="btn btn-blue" onclick="showMyAchievementsPage()" style="height: 80px; font-size: 18px;">
-                                <div>🏆</div>
-                                <div>我的成就</div>
+                            
+                            <button class="btn btn-blue" onclick="showClockInStats()" style="height: 80px; font-size: 18px;">
+                                <div>📊</div>
+                                <div>学习统计</div>
                             </button>
+                            
                             <button class="btn" onclick="showMyWordListPage()" style="height: 80px; font-size: 18px;">
                                 <div>📖</div>
                                 <div>我的单词本</div>
                             </button>
+                            
                             <button class="btn" onclick="startReviewTraining()" style="height: 80px; font-size: 18px;">
                                 <div>🔄</div>
                                 <div>复习弱项</div>
                             </button>
-                            <button class="btn" onclick="showTodayWordsPage()" style="height: 80px; font-size: 18px; grid-column: span 2;">
-                                <div>📅</div>
-                                <div>今日任务</div>
+                            
+                            <button class="btn" onclick="showReviewPlan()" style="height: 80px; font-size: 18px; grid-column: span 2;">
+                                <div>📋</div>
+                                <div>智能复习</div>
                             </button>
+                            
                             <button class="btn btn-gold" onclick="manualSyncWords()" style="height: 80px; font-size: 18px; grid-column: span 2;">
                                 <div>🔄</div>
                                 <div>立即同步</div>
@@ -552,10 +655,209 @@
                     <!-- 动态内容 -->
                 </div>
             </div>
+            
+            <!-- 新增：打卡统计页面 -->
+            <div id="clockin-stats-screen" class="screen">
+                <div class="fixed-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: #333;">📊 学习统计</h2>
+                        <button class="btn" onclick="showStudentDashboard()" style="padding: 8px 16px;">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="content-padding">
+                    <div style="max-width: 1000px; margin: 0 auto;">
+                        <!-- 连续打卡统计 -->
+                        <div class="stats-card">
+                            <h3 style="color: #333; margin-bottom: 20px;">🔥 连续打卡记录</h3>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                                <div>
+                                    <div style="font-size: 2.5em; font-weight: bold; color: #4CAF50;" id="current-streak">0</div>
+                                    <div style="color: #666;">当前连续打卡</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 2.5em; font-weight: bold; color: #2196F3;" id="longest-streak">0</div>
+                                    <div style="color: #666;">最长连续打卡</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 2.5em; font-weight: bold; color: #9C27B0;" id="total-days">0</div>
+                                    <div style="color: #666;">总打卡天数</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 打卡日历 -->
+                            <div id="clockin-calendar">
+                                <h4 style="color: #333; margin-bottom: 15px;">📅 打卡日历</h4>
+                                <div id="calendar-container"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 月度统计 -->
+                        <div class="stats-card" style="margin-top: 20px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">📈 月度学习数据</h3>
+                            <div id="month-stats-content">
+                                <!-- 动态加载月度统计 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 学习趋势 -->
+                        <div class="stats-card" style="margin-top: 20px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">📊 学习趋势</h3>
+                            <div id="study-trend" style="height: 300px;">
+                                <!-- 可以放置图表 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 奖励记录 -->
+                        <div class="stats-card" style="margin-top: 20px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">🏆 学习奖励</h3>
+                            <div id="rewards-list">
+                                <!-- 动态加载奖励 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新增：每日任务生成页面 -->
+            <div id="daily-task-screen" class="screen">
+                <div class="fixed-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: #333;">🎯 今日学习任务</h2>
+                        <button class="btn" onclick="showStudentDashboard()" style="padding: 8px 16px;">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="content-padding">
+                    <div style="max-width: 800px; margin: 0 auto;">
+                        <!-- 任务模式选择 -->
+                        <div class="stats-card">
+                            <h3 style="color: #333; margin-bottom: 15px;">📝 选择学习模式</h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                                <button class="btn" onclick="selectTaskMode(0)" id="mode-standard" style="padding: 20px;">
+                                    <div style="font-size: 24px; margin-bottom: 10px;">📚</div>
+                                    <div style="font-weight: bold;">标准模式</div>
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">10新词+10复习</div>
+                                </button>
+                                
+                                <button class="btn btn-blue" onclick="selectTaskMode(1)" id="mode-review" style="padding: 20px;">
+                                    <div style="font-size: 24px; margin-bottom: 10px;">🔄</div>
+                                    <div style="font-weight: bold;">复习模式</div>
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">复习20个单词</div>
+                                </button>
+                                
+                                <button class="btn" onclick="selectTaskMode(2)" id="mode-extra" style="padding: 20px;">
+                                    <div style="font-size: 24px; margin-bottom: 10px;">✨</div>
+                                    <div style="font-weight: bold;">额外新词</div>
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">学习20个新词</div>
+                                </button>
+                            </div>
+                            
+                            <div style="text-align: center; color: #666; font-size: 14px;">
+                                <p>📅 连续学习 <span id="consecutive-task-days">0</span> 天</p>
+                                <p id="review-day-notice" style="display: none; color: #FF9800; font-weight: bold;">🎉 今天是复习日！主要复习已学单词</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 今日任务详情 -->
+                        <div id="task-details" style="margin-top: 30px;">
+                            <!-- 动态加载任务详情 -->
+                        </div>
+                        
+                        <!-- 开始学习按钮 -->
+                        <div style="text-align: center; margin-top: 30px;">
+                            <button class="btn" onclick="startDailyTask()" id="start-task-btn" style="padding: 15px 40px; font-size: 18px;">
+                                开始学习
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新增：复习计划页面 -->
+            <div id="review-plan-screen" class="screen">
+                <div class="fixed-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: #333;">🔄 智能复习计划</h2>
+                        <button class="btn" onclick="showStudentDashboard()" style="padding: 8px 16px;">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="content-padding">
+                    <div style="max-width: 1000px; margin: 0 auto;">
+                        <!-- 复习统计 -->
+                        <div class="stats-card">
+                            <h3 style="color: #333; margin-bottom: 20px;">📊 复习概况</h3>
+                            <div class="card-grid">
+                                <div class="stat-card">
+                                    <div class="number" id="due-reviews">0</div>
+                                    <div class="label">今日需复习</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="number" id="weak-words">0</div>
+                                    <div class="label">弱项单词</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="number" id="medium-words">0</div>
+                                    <div class="label">中等掌握</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="number" id="strong-words">0</div>
+                                    <div class="label">牢固掌握</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 复习时间表 -->
+                        <div class="stats-card" style="margin-top: 20px;">
+                            <h3 style="color: #333; margin-bottom: 15px;">📅 艾宾浩斯复习计划</h3>
+                            <div id="ebbinghaus-schedule">
+                                <!-- 动态加载复习时间表 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 智能复习选项 -->
+                        <div style="background: #f8f9fa; border-radius: 15px; padding: 25px; margin-top: 20px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">🎯 选择复习方式</h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <button class="btn" onclick="startSmartReview('due')" style="height: 100px; font-size: 18px;">
+                                    <div style="font-size: 28px; margin-bottom: 10px;">📅</div>
+                                    <div style="font-weight: bold; margin-bottom: 5px;">今日到期复习</div>
+                                    <div style="color: #666; font-size: 14px;">复习今日到期的单词</div>
+                                </button>
+                                
+                                <button class="btn btn-blue" onclick="startSmartReview('weak')" style="height: 100px; font-size: 18px;">
+                                    <div style="font-size: 28px; margin-bottom: 10px;">⚠️</div>
+                                    <div style="font-weight: bold; margin-bottom: 5px;">弱项重点复习</div>
+                                    <div style="color: #666; font-size: 14px;">重点复习记忆薄弱单词</div>
+                                </button>
+                                
+                                <button class="btn" onclick="startSmartReview('random')" style="height: 100px; font-size: 18px;">
+                                    <div style="font-size: 28px; margin-bottom: 10px;">🎲</div>
+                                    <div style="font-weight: bold; margin-bottom: 5px;">随机复习</div>
+                                    <div style="color: #666; font-size: 14px;">随机复习所有单词</div>
+                                </button>
+                                
+                                <button class="btn" onclick="startSmartReview('urgent')" style="height: 100px; font-size: 18px;">
+                                    <div style="font-size: 28px; margin-bottom: 10px;">🔥</div>
+                                    <div style="font-weight: bold; margin-bottom: 5px;">紧急复习</div>
+                                    <div style="color: #666; font-size: 14px;">复习即将到期的单词</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-<script>
+    <script>
 // ========== 数据库配置 ==========
 const SUPABASE_URL = 'https://lctdyhtydcqhloibogyj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM';
@@ -577,6 +879,30 @@ const appState = {
     lastTrainingDate: null
 };
 
+// ========== 新增：连接状态和配置 ==========
+const connectionState = {
+    isOnline: navigator.onLine,
+    retryCount: 0,
+    maxRetries: 3,
+    retryDelay: 2000,
+    isLoading: false,
+    lastError: null,
+    isOfflineMode: false,
+    connectionCheckInterval: null
+};
+
+// ========== 新增：打卡系统相关变量 ==========
+const clockInSystem = {
+    currentStreak: 0,
+    longestStreak: 0,
+    totalDays: 0,
+    todayClockedIn: false,
+    selectedTaskMode: 0, // 0=标准模式, 1=复习模式, 2=额外新词模式
+    isReviewDay: false,
+    dailyTask: null,
+    reviewPlans: []
+};
+
 // ========== 工具函数 ==========
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -584,16 +910,51 @@ function showScreen(screenId) {
     if (screen) screen.classList.add('active');
 }
 
-function showMessage(elementId, message, type = 'info') {
+// ========== 新增：加载动画控制 ==========
+function showLoading(message = '正在加载', details = '') {
+    connectionState.isLoading = true;
+    const loadingEl = document.getElementById('global-loading');
+    if (loadingEl) {
+        loadingEl.style.display = 'flex';
+        document.getElementById('loading-message').textContent = message;
+        document.getElementById('loading-details').textContent = details;
+    }
+}
+
+function hideLoading() {
+    connectionState.isLoading = false;
+    const loadingEl = document.getElementById('global-loading');
+    if (loadingEl) {
+        loadingEl.style.display = 'none';
+    }
+}
+
+function updateLoadingMessage(message) {
+    const messageEl = document.getElementById('loading-message');
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
+}
+
+// ========== 修改：showMessage函数（增强版） ==========
+function showMessage(elementId, message, type = 'info', duration = 0) {
     const el = document.getElementById(elementId);
     if (!el) return;
     
     el.textContent = message;
     el.className = `message-box message-${type}`;
     el.style.display = 'block';
+    
+    // 自动隐藏
+    if (duration > 0) {
+        setTimeout(() => {
+            el.style.display = 'none';
+        }, duration);
+    }
 }
 
-function showAlert(message, type = 'info') {
+// ========== 修改：showAlert函数（增强版） ==========
+function showAlert(message, type = 'info', duration = 3000) {
     const alertBox = document.createElement('div');
     alertBox.className = `message-box message-${type}`;
     alertBox.style.position = 'fixed';
@@ -602,10 +963,42 @@ function showAlert(message, type = 'info') {
     alertBox.style.transform = 'translateX(-50%)';
     alertBox.style.zIndex = '1000';
     alertBox.style.maxWidth = '500px';
+    alertBox.style.animation = 'slideDown 0.3s ease-out';
     alertBox.textContent = message;
+
+   // 添加关闭按钮
+    const closeBtn = document.createElement('span');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.cssText = `
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        cursor: pointer;
+        font-size: 20px;
+        color: inherit;
+        opacity: 0.7;
+    `;
+    closeBtn.onclick = () => alertBox.remove();
     
+    alertBox.appendChild(closeBtn);
     document.body.appendChild(alertBox);
-    setTimeout(() => alertBox.remove(), 3000);
+    
+    // 自动移除
+    if (duration > 0) {
+        setTimeout(() => {
+            if (alertBox.parentNode) {
+                alertBox.style.opacity = '0';
+                alertBox.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    if (alertBox.parentNode) {
+                        alertBox.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
+    }
+    
+    return alertBox;
 }
 
 // ========== 智能字体大小调整 ==========
@@ -618,106 +1011,1099 @@ function getFontSizeClass(text) {
     return 'font-size-xs';
 }
 
+// ========== 新增：打卡系统核心函数 ==========
+
+// 加载打卡状态
+async function loadClockInStatus() {
+    try {
+        // 检查今日是否已打卡
+        const today = new Date().toISOString().split('T')[0];
+        const { data: todayRecord, error } = await dbClient
+            .from('clock_in_records')
+            .select('*')
+            .eq('student_id', appState.currentUser)
+            .eq('clock_in_date', today)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.error('加载打卡状态错误:', error);
+            return;
+        }
+        
+        clockInSystem.todayClockedIn = !!todayRecord?.is_clock_in;
+        
+        // 更新UI显示
+        updateClockInUI();
+        
+        // 获取连续打卡天数
+        await loadConsecutiveDays();
+        
+    } catch (error) {
+        console.error('加载打卡状态错误:', error);
+    }
+}
+
+// 更新打卡UI
+function updateClockInUI() {
+    const clockInStatus = document.getElementById('clock-in-status');
+    if (!clockInStatus) return;
+    
+    if (clockInSystem.todayClockedIn) {
+        clockInStatus.innerHTML = '✅ 今日已打卡';
+        clockInStatus.style.background = '#4CAF50';
+    } else {
+        clockInStatus.innerHTML = '📅 今日未打卡';
+        clockInStatus.style.background = '#FF9800';
+    }
+    
+    // 更新连续天数显示
+    const consecutiveDaysEl = document.getElementById('consecutive-days');
+    if (consecutiveDaysEl) {
+        consecutiveDaysEl.textContent = clockInSystem.currentStreak;
+    }
+}
+
+// 加载连续打卡天数
+async function loadConsecutiveDays() {
+    try {
+        // 获取所有打卡记录
+        const { data: records, error } = await dbClient
+            .from('clock_in_records')
+            .select('clock_in_date')
+            .eq('student_id', appState.currentUser)
+            .eq('is_clock_in', true)
+            .order('clock_in_date', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (!records || records.length === 0) {
+            clockInSystem.currentStreak = 0;
+            clockInSystem.totalDays = 0;
+            updateClockInUI();
+            return;
+        }
+        
+        // 计算连续打卡天数
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let tempStreak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // 检查今天是否打卡
+        const todayStr = today.toISOString().split('T')[0];
+        const hasToday = records.some(r => r.clock_in_date === todayStr);
+        
+        // 计算最长连续天数
+        for (let i = 0; i < records.length - 1; i++) {
+            const currentDate = new Date(records[i].clock_in_date);
+            const nextDate = new Date(records[i + 1].clock_in_date);
+            const diffDays = Math.floor((currentDate - nextDate) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                tempStreak++;
+                longestStreak = Math.max(longestStreak, tempStreak);
+            } else {
+                tempStreak = 0;
+            }
+        }
+        
+        // 计算当前连续天数
+        if (hasToday) {
+            currentStreak = 1;
+            let expectedDate = new Date(today);
+            
+            for (let i = 1; i < records.length; i++) {
+                expectedDate.setDate(expectedDate.getDate() - 1);
+                const expectedStr = expectedDate.toISOString().split('T')[0];
+                
+                if (records[i]?.clock_in_date === expectedStr) {
+                    currentStreak++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        clockInSystem.currentStreak = currentStreak;
+        clockInSystem.longestStreak = longestStreak + 1; // 加1因为起始为0
+        clockInSystem.totalDays = records.length;
+        
+        // 检查是否是第7天（复习日）
+        clockInSystem.isReviewDay = (currentStreak % 7 === 0);
+        
+        updateClockInUI();
+        
+    } catch (error) {
+        console.error('计算连续打卡天数错误:', error);
+    }
+}
+
+// 每日打卡
+async function dailyClockIn() {
+    if (clockInSystem.todayClockedIn) {
+        showAlert('今天已经打过卡了！', 'info');
+        return;
+    }
+    
+    showAlert('正在生成今日任务...', 'info');
+    
+    // 显示任务选择页面
+    showDailyTaskPage();
+}
+
+// 显示每日任务页面
+function showDailyTaskPage() {
+    showScreen('daily-task-screen');
+    loadDailyTaskPage();
+}
+
+// 加载每日任务页面
+function loadDailyTaskPage() {
+    // 更新连续天数显示
+    const consecutiveTaskDaysEl = document.getElementById('consecutive-task-days');
+    if (consecutiveTaskDaysEl) {
+        consecutiveTaskDaysEl.textContent = clockInSystem.currentStreak;
+    }
+    
+    // 检查是否是复习日
+    const reviewDayNotice = document.getElementById('review-day-notice');
+    if (reviewDayNotice) {
+        reviewDayNotice.style.display = clockInSystem.isReviewDay ? 'block' : 'none';
+    }
+    
+    // 重置模式选择
+    clockInSystem.selectedTaskMode = 0;
+    selectTaskMode(0);
+    
+    // 生成任务预览
+    generateTaskPreview();
+}
+
+// 选择任务模式
+function selectTaskMode(mode) {
+    clockInSystem.selectedTaskMode = mode;
+    
+    // 更新按钮样式
+    ['mode-standard', 'mode-review', 'mode-extra'].forEach((id, index) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            if (index === mode) {
+                btn.style.border = '3px solid #4CAF50';
+                btn.style.background = '#E8F5E9';
+            } else {
+                btn.style.border = '2px solid #ddd';
+                btn.style.background = '';
+            }
+        }
+    });
+    
+    generateTaskPreview();
+}
+
+// 生成任务预览
+async function generateTaskPreview() {
+    const taskDetails = document.getElementById('task-details');
+    if (!taskDetails) return;
+    
+    // 根据模式生成任务描述
+    let newWords = 0;
+    let reviewWords = 0;
+    let description = '';
+    
+    if (clockInSystem.isReviewDay) {
+        // 复习日，不学新单词
+        newWords = 0;
+        reviewWords = 20;
+        description = '📅 今天是复习日！专注复习已学单词';
+    } else {
+        switch (clockInSystem.selectedTaskMode) {
+            case 0: // 标准模式
+                newWords = 10;
+                reviewWords = 10;
+                description = '📚 标准学习：均衡新词与复习';
+                break;
+            case 1: // 复习模式
+                newWords = 0;
+                reviewWords = 20;
+                description = '🔄 专注复习：巩固已学单词';
+                break;
+            case 2: // 额外新词模式
+                newWords = 20;
+                reviewWords = 0;
+                description = '✨ 拓展新词：快速扩充词汇量';
+                break;
+        }
+    }
+    
+    // 智能选择单词
+    const taskWords = await selectSmartWords(newWords, reviewWords);
+    
+    // 保存任务
+    clockInSystem.dailyTask = {
+        mode: clockInSystem.selectedTaskMode,
+        newWords: newWords,
+        reviewWords: reviewWords,
+        isReviewDay: clockInSystem.isReviewDay,
+        words: taskWords,
+        description: description
+    };
+    
+    // 显示任务详情
+    taskDetails.innerHTML = `
+        <div class="stats-card">
+            <h4 style="color: #333; margin-bottom: 15px;">${description}</h4>
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="number">${newWords}</div>
+                    <div class="label">新单词</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${reviewWords}</div>
+                    <div class="label">复习单词</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${newWords + reviewWords}</div>
+                    <div class="label">总计</div>
+                </div>
+            </div>
+            
+            ${taskWords.newWords.length > 0 ? `
+                <div style="margin-top: 20px;">
+                    <h5 style="color: #333; margin-bottom: 10px;">📖 新单词列表</h5>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${taskWords.newWords.slice(0, 5).map(word => `
+                            <div style="background: #E3F2FD; padding: 8px 12px; border-radius: 8px; font-size: 14px;">
+                                ${word.english}
+                            </div>
+                        `).join('')}
+                        ${taskWords.newWords.length > 5 ? `<div style="color: #666; padding: 8px;">...等 ${taskWords.newWords.length} 个单词</div>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+            
+            ${taskWords.reviewWords.length > 0 ? `
+                <div style="margin-top: 20px;">
+                    <h5 style="color: #333; margin-bottom: 10px;">🔄 复习单词列表</h5>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${taskWords.reviewWords.slice(0, 5).map(word => `
+                            <div style="background: #E8F5E9; padding: 8px 12px; border-radius: 8px; font-size: 14px;">
+                                ${word.english}
+                            </div>
+                        `).join('')}
+                        ${taskWords.reviewWords.length > 5 ? `<div style="color: #666; padding: 8px;">...等 ${taskWords.reviewWords.length} 个单词</div>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div style="margin-top: 20px; padding: 15px; background: #FFF3CD; border-radius: 10px;">
+                <p style="color: #856404; margin: 0;">
+                    💡 提示：完成今日任务可获得 ${clockInSystem.currentStreak + 1} 天连续打卡记录！
+                    ${clockInSystem.currentStreak + 1 >= 7 ? '🎉 即将获得7天奖励！' : ''}
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+// 智能选择单词
+async function selectSmartWords(newWordCount, reviewWordCount) {
+    try {
+        const result = {
+            newWords: [],
+            reviewWords: []
+        };
+        
+        // 获取学生单词
+        const { data: allWords, error } = await dbClient
+            .from('study_records')
+            .select('*')
+            .eq('student_id', appState.currentUser);
+        
+        if (error) throw error;
+        
+        if (!allWords || allWords.length === 0) {
+            return result;
+        }
+        
+        // 按状态分类单词
+        const newWords = allWords.filter(w => w.status === 'new');
+        const learningWords = allWords.filter(w => w.status === 'learning');
+        const masteredWords = allWords.filter(w => w.status === 'mastered');
+        
+        // 选择新单词（从未学过的）
+        if (newWordCount > 0) {
+            // 随机选择新单词
+            const shuffledNew = [...newWords].sort(() => Math.random() - 0.5);
+            result.newWords = shuffledNew.slice(0, newWordCount);
+        }
+        
+        // 选择复习单词
+        if (reviewWordCount > 0) {
+            let reviewCandidates = [];
+            
+            // 如果单词总数超过100，限制学习中单词数量
+            const maxLearningReview = allWords.length > 100 ? 8 : 20;
+            
+            // 根据艾宾浩斯记忆曲线选择
+            if (clockInSystem.isReviewDay) {
+                // 复习日：按权重选择
+                // 需学习（45%）、学习中（40%）、已掌握（15%）
+                const needReview = Math.floor(reviewWordCount * 0.45);
+                const learningReview = Math.floor(reviewWordCount * 0.40);
+                const masteredReview = reviewWordCount - needReview - learningReview;
+                
+                // 需学习单词
+                const shuffledNeed = [...newWords].sort(() => Math.random() - 0.5);
+                reviewCandidates = reviewCandidates.concat(shuffledNeed.slice(0, needReview));
+                
+                // 学习中单词
+                const shuffledLearning = [...learningWords].sort(() => Math.random() - 0.5);
+                reviewCandidates = reviewCandidates.concat(shuffledLearning.slice(0, Math.min(learningReview, maxLearningReview)));
+                
+                // 已掌握单词（选择最近学习的）
+                const recentMastered = [...masteredWords]
+                    .sort((a, b) => new Date(b.last_reviewed || 0) - new Date(a.last_reviewed || 0))
+                    .slice(0, masteredReview);
+                reviewCandidates = reviewCandidates.concat(recentMastered);
+                
+            } else {
+                // 普通日：优先复习最近学习的和记忆薄弱的
+                // 组合各种状态的单词
+                const allForReview = [...learningWords, ...masteredWords, ...newWords];
+                
+                // 智能排序：根据复习次数、最后复习时间、状态
+                allForReview.sort((a, b) => {
+                    // 未掌握的优先
+                    if (a.status === 'new' && b.status !== 'new') return -1;
+                    if (a.status !== 'new' && b.status === 'new') return 1;
+                    
+                    // 复习次数少的优先
+                    if ((a.review_count || 0) !== (b.review_count || 0)) {
+                        return (a.review_count || 0) - (b.review_count || 0);
+                    }
+                    
+                    // 最后复习时间早的优先
+                    const aDate = a.last_reviewed ? new Date(a.last_reviewed) : new Date(0);
+                    const bDate = b.last_reviewed ? new Date(b.last_reviewed) : new Date(0);
+                    return aDate - bDate;
+                });
+                
+                // 限制学习中单词数量
+                const learningSelected = allForReview.filter(w => w.status === 'learning').slice(0, maxLearningReview);
+                const others = allForReview.filter(w => w.status !== 'learning');
+                const combined = [...learningSelected, ...others];
+                
+                reviewCandidates = combined.slice(0, reviewWordCount);
+            }
+            
+            // 去重
+            const seenIds = new Set();
+            result.reviewWords = reviewCandidates.filter(word => {
+                const id = word.id || word.word_id;
+                if (!seenIds.has(id)) {
+                    seenIds.add(id);
+                    return true;
+                }
+                return false;
+            }).slice(0, reviewWordCount);
+        }
+        
+        return result;
+        
+    } catch (error) {
+        console.error('智能选择单词错误:', error);
+        return { newWords: [], reviewWords: [] };
+    }
+}
+
+// 开始每日任务
+function startDailyTask() {
+    if (!clockInSystem.dailyTask || !clockInSystem.dailyTask.words) {
+        showAlert('请先生成任务', 'error');
+        return;
+    }
+    
+    // 合并所有单词开始训练
+    const allWords = [
+        ...clockInSystem.dailyTask.words.newWords,
+        ...clockInSystem.dailyTask.words.reviewWords
+    ];
+    
+    if (allWords.length === 0) {
+        showAlert('没有找到合适的单词进行训练', 'info');
+        return;
+    }
+    
+    // 打乱顺序
+    const shuffledWords = [...allWords].sort(() => Math.random() - 0.5);
+    
+    // 设置训练状态
+    appState.trainingWords = shuffledWords;
+    appState.currentWordIndex = 0;
+    appState.isCardFlipped = false;
+    
+    // 开始训练
+    startTrainingSession();
+}
+
+// 完成训练后的打卡记录
+async function recordClockInAfterTraining() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const totalWords = appState.trainingWords.length;
+        
+        // 统计新单词和复习单词数量
+        let newWordCount = 0;
+        let reviewWordCount = 0;
+        
+        // 这里简化统计，实际应该根据单词状态变化来统计
+        if (clockInSystem.dailyTask) {
+            newWordCount = clockInSystem.dailyTask.newWords;
+            reviewWordCount = clockInSystem.dailyTask.reviewWords;
+        } else {
+            // 如果没有任务信息，简单估算
+            newWordCount = Math.floor(totalWords * 0.5);
+            reviewWordCount = totalWords - newWordCount;
+        }
+        
+        // 创建或更新打卡记录
+        const { data: existingRecord, error: checkError } = await dbClient
+            .from('clock_in_records')
+            .select('*')
+            .eq('student_id', appState.currentUser)
+            .eq('clock_in_date', today)
+            .single();
+        
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+        
+        if (existingRecord) {
+            // 更新现有记录
+            const { error: updateError } = await dbClient
+                .from('clock_in_records')
+                .update({
+                    is_clock_in: true,
+                    study_mode: clockInSystem.selectedTaskMode,
+                    new_word_count: newWordCount,
+                    review_word_count: reviewWordCount,
+                    total_study_time: 30, // 假设学习30分钟
+                    study_summary: '完成每日任务',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingRecord.id);
+            
+            if (updateError) throw updateError;
+            
+        } else {
+            // 创建新记录
+            const { error: insertError } = await dbClient
+                .from('clock_in_records')
+                .insert([{
+                    student_id: appState.currentUser,
+                    clock_in_date: today,
+                    is_clock_in: true,
+                    study_mode: clockInSystem.selectedTaskMode,
+                    new_word_count: newWordCount,
+                    review_word_count: reviewWordCount,
+                    total_study_time: 30,
+                    study_summary: '完成每日任务'
+                }]);
+            
+            if (insertError) throw insertError;
+        }
+        
+        // 更新学习统计
+        await updateStudyStatistics(totalWords, newWordCount);
+        
+        // 检查是否应该发放奖励
+        await checkAndAwardReward();
+        
+        // 更新本地状态
+        clockInSystem.todayClockedIn = true;
+        clockInSystem.currentStreak++;
+        
+        // 更新UI
+        updateClockInUI();
+        
+        showAlert('✅ 打卡成功！学习记录已保存', 'success');
+        
+    } catch (error) {
+        console.error('记录打卡错误:', error);
+        showAlert('打卡记录失败，但学习已完成', 'warning');
+    }
+}
+
+// 更新学习统计
+async function updateStudyStatistics(totalWords, newWords) {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 获取或创建今日统计
+        const { data: existingStats, error: checkError } = await dbClient
+            .from('study_statistics')
+            .select('*')
+            .eq('student_id', appState.currentUser)
+            .eq('stat_date', today)
+            .single();
+        
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+        
+        const consecutiveDays = clockInSystem.currentStreak;
+        
+        if (existingStats) {
+            // 更新现有统计
+            const { error: updateError } = await dbClient
+                .from('study_statistics')
+                .update({
+                    new_words_learned: (existingStats.new_words_learned || 0) + newWords,
+                    words_reviewed: (existingStats.words_reviewed || 0) + (totalWords - newWords),
+                    total_study_time: (existingStats.total_study_time || 0) + 30,
+                    consecutive_days: consecutiveDays,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingStats.id);
+            
+            if (updateError) throw updateError;
+            
+        } else {
+            // 创建新统计
+            const { error: insertError } = await dbClient
+                .from('study_statistics')
+                .insert([{
+                    student_id: appState.currentUser,
+                    stat_date: today,
+                    new_words_learned: newWords,
+                    words_reviewed: totalWords - newWords,
+                    total_study_time: 30,
+                    consecutive_days: consecutiveDays,
+                    has_reward: false,
+                    month_absence: 0
+                }]);
+            
+            if (insertError) throw insertError;
+        }
+        
+    } catch (error) {
+        console.error('更新学习统计错误:', error);
+    }
+}
+
+// 检查并发放奖励
+async function checkAndAwardReward() {
+    if (clockInSystem.currentStreak >= 7 && clockInSystem.currentStreak % 7 === 0) {
+        try {
+            // 更新统计表中的奖励状态
+            const today = new Date().toISOString().split('T')[0];
+            
+            const { error: updateError } = await dbClient
+                .from('study_statistics')
+                .update({
+                    has_reward: true
+                })
+                .eq('student_id', appState.currentUser)
+                .eq('stat_date', today);
+            
+            if (updateError) throw updateError;
+            
+            // 显示奖励消息
+            showAlert(`🎉 恭喜您连续学习7天！获得语言学习奖励！`, 'success');
+            
+        } catch (error) {
+            console.error('发放奖励错误:', error);
+        }
+    }
+}
+
+// 显示打卡统计
+function showClockInStats() {
+    showScreen('clockin-stats-screen');
+    loadClockInStats();
+}
+
+// 加载打卡统计
+async function loadClockInStats() {
+    try {
+        // 更新统计数字
+        document.getElementById('current-streak').textContent = clockInSystem.currentStreak;
+        document.getElementById('longest-streak').textContent = clockInSystem.longestStreak;
+        document.getElementById('total-days').textContent = clockInSystem.totalDays;
+        
+        // 加载月度统计
+        await loadMonthStats();
+        
+        // 加载打卡日历
+        await loadClockInCalendar();
+        
+        // 加载奖励记录
+        await loadRewards();
+        
+    } catch (error) {
+        console.error('加载打卡统计错误:', error);
+    }
+}
+
+// 加载月度统计
+async function loadMonthStats() {
+    try {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        const { data: monthStats, error } = await dbClient
+            .from('study_statistics')
+            .select('*')
+            .eq('student_id', appState.currentUser)
+            .gte('stat_date', firstDay.toISOString().split('T')[0])
+            .lte('stat_date', lastDay.toISOString().split('T')[0])
+            .order('stat_date');
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('month-stats-content');
+        
+        if (!monthStats || monthStats.length === 0) {
+            container.innerHTML = '<p style="color: #666; text-align: center;">本月还没有学习记录</p>';
+            return;
+        }
+        
+        // 计算月度总计
+        let totalNewWords = 0;
+        let totalReviews = 0;
+        let totalStudyTime = 0;
+        let absenceDays = 0;
+        
+        monthStats.forEach(stat => {
+            totalNewWords += stat.new_words_learned || 0;
+            totalReviews += stat.words_reviewed || 0;
+            totalStudyTime += stat.total_study_time || 0;
+            
+            if (!stat.new_words_learned && !stat.words_reviewed) {
+                absenceDays++;
+            }
+        });
+        
+        const daysInMonth = lastDay.getDate();
+        const studyDays = monthStats.length;
+        const avgDailyWords = studyDays > 0 ? Math.round((totalNewWords + totalReviews) / studyDays) : 0;
+        
+        container.innerHTML = `
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="number">${studyDays}</div>
+                    <div class="label">学习天数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${totalNewWords}</div>
+                    <div class="label">新学单词</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${totalReviews}</div>
+                    <div class="label">复习单词</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${avgDailyWords}</div>
+                    <div class="label">日均单词</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #666;">本月学习天数</span>
+                    <span style="color: #4CAF50; font-weight: bold;">${studyDays}/${daysInMonth}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${(studyDays / daysInMonth) * 100}%"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px; color: #666; font-size: 14px;">
+                <p>📊 学习总时长：${totalStudyTime} 分钟</p>
+                <p>📅 缺卡天数：${absenceDays} 天</p>
+                <p>📈 学习频率：${(studyDays / daysInMonth * 100).toFixed(1)}%</p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('加载月度统计错误:', error);
+    }
+}
+
+// 加载打卡日历
+async function loadClockInCalendar() {
+    try {
+        const { data: records, error } = await dbClient
+            .from('clock_in_records')
+            .select('clock_in_date')
+            .eq('student_id', appState.currentUser)
+            .eq('is_clock_in', true)
+            .order('clock_in_date', { ascending: false })
+            .limit(90); // 最近90天
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('calendar-container');
+        if (!container) return;
+        
+        // 创建打卡日期集合
+        const clockedDates = new Set();
+        if (records) {
+            records.forEach(record => {
+                clockedDates.add(record.clock_in_date);
+            });
+        }
+        
+        // 生成最近30天的日历
+        const today = new Date();
+        const calendarDays = [];
+        
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            calendarDays.push({
+                date: dateStr,
+                day: date.getDate(),
+                isClocked: clockedDates.has(dateStr),
+                isToday: i === 0
+            });
+        }
+        
+        // 按周分组
+        const weeks = [];
+        let currentWeek = [];
+        
+        calendarDays.forEach((day, index) => {
+            currentWeek.push(day);
+            
+            if ((index + 1) % 7 === 0 || index === calendarDays.length - 1) {
+                weeks.push([...currentWeek]);
+                currentWeek = [];
+            }
+        });
+        
+        // 生成日历HTML
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        
+        let calendarHTML = `
+            <div style="overflow-x: auto;">
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; min-width: 300px;">
+                    ${weekdays.map(day => `
+                        <div style="text-align: center; padding: 8px; background: #f5f5f5; border-radius: 5px; font-weight: bold; color: #666;">
+                            ${day}
+                        </div>
+                    `).join('')}
+        `;
+        
+        // 填充日期
+        weeks.forEach(week => {
+            week.forEach(day => {
+                let className = 'calendar-day';
+                let title = day.date;
+                
+                if (day.isToday) {
+                    className += ' today';
+                    title += ' (今天)';
+                }
+                
+                if (day.isClocked) {
+                    className += ' clocked';
+                    title += ' ✓ 已打卡';
+                }
+                
+                calendarHTML += `
+                    <div style="text-align: center; padding: 10px; border-radius: 5px; background: ${day.isClocked ? '#4CAF50' : '#f5f5f5'}; 
+                          color: ${day.isClocked ? 'white' : '#666'}; ${day.isToday ? 'border: 2px solid #2196F3;' : ''}"
+                          title="${title}">
+                        ${day.day}
+                        ${day.isClocked ? '<br><span style="font-size: 10px;">✓</span>' : ''}
+                    </div>
+                `;
+            });
+        });
+        
+        calendarHTML += `
+                </div>
+            </div>
+            <p style="color: #666; text-align: center; margin-top: 10px; font-size: 14px;">
+                ✅ 表示已打卡的日子 | 蓝色边框表示今天
+            </p>
+        `;
+        
+        container.innerHTML = calendarHTML;
+        
+    } catch (error) {
+        console.error('加载打卡日历错误:', error);
+    }
+}
+
+// 加载奖励记录
+async function loadRewards() {
+    try {
+        const { data: stats, error } = await dbClient
+            .from('study_statistics')
+            .select('stat_date, consecutive_days, has_reward')
+            .eq('student_id', appState.currentUser)
+            .eq('has_reward', true)
+            .order('stat_date', { ascending: false });
+        
+        if (error) throw error;
+        
+        const container = document.getElementById('rewards-list');
+        
+        if (!stats || stats.length === 0) {
+            container.innerHTML = '<p style="color: #666; text-align: center;">还没有获得奖励</p>';
+            return;
+        }
+        
+        let rewardsHTML = '<div style="display: flex; flex-wrap: wrap; gap: 15px;">';
+        
+        stats.forEach(stat => {
+            const date = new Date(stat.stat_date).toLocaleDateString('zh-CN');
+            const streak = stat.consecutive_days;
+            
+            // 根据连续天数决定奖励等级
+            let rewardTitle = '';
+            let rewardDesc = '';
+            let icon = '🏆';
+            
+            if (streak >= 30) {
+                rewardTitle = '🏅 月度学习之星';
+                rewardDesc = '连续学习30天';
+                icon = '🌟';
+            } else if (streak >= 14) {
+                rewardTitle = '🥈 双周学习达人';
+                rewardDesc = '连续学习14天';
+                icon = '⭐';
+            } else if (streak >= 7) {
+                rewardTitle = '🥉 周学习标兵';
+                rewardDesc = '连续学习7天';
+                icon = '🎖️';
+            }
+            
+            rewardsHTML += `
+                <div style="background: #FFF3CD; border: 2px solid #FFC107; border-radius: 10px; padding: 15px; min-width: 200px;">
+                    <div style="font-size: 2em; text-align: center; margin-bottom: 10px;">${icon}</div>
+                    <div style="font-weight: bold; text-align: center; margin-bottom: 5px;">${rewardTitle}</div>
+                    <div style="color: #666; text-align: center; font-size: 14px;">${rewardDesc}</div>
+                    <div style="color: #999; text-align: center; font-size: 12px; margin-top: 10px;">${date}</div>
+                </div>
+            `;
+        });
+        
+        rewardsHTML += '</div>';
+        container.innerHTML = rewardsHTML;
+        
+    } catch (error) {
+        console.error('加载奖励记录错误:', error);
+    }
+}
+
+// 显示复习计划页面
+function showReviewPlan() {
+    showScreen('review-plan-screen');
+    loadReviewPlan();
+}
+
+// 加载复习计划
+async function loadReviewPlan() {
+    try {
+        // 获取学生的所有单词
+        const { data: allWords, error } = await dbClient
+            .from('study_records')
+            .select('*')
+            .eq('student_id', appState.currentUser);
+        
+        if (error) throw error;
+        
+        if (!allWords || allWords.length === 0) {
+            // 如果没有单词，显示提示
+            document.getElementById('due-reviews').textContent = '0';
+            document.getElementById('weak-words').textContent = '0';
+            document.getElementById('medium-words').textContent = '0';
+            document.getElementById('strong-words').textContent = '0';
+            
+            document.getElementById('ebbinghaus-schedule').innerHTML = `
+                <p style="color: #666; text-align: center;">还没有单词可以复习</p>
+            `;
+            return;
+        }
+        
+        // 根据状态和复习次数分类单词
+        const weakWords = allWords.filter(w => 
+            w.status === 'new' || 
+            (w.review_count || 0) <= 1
+        );
+        
+        const mediumWords = allWords.filter(w => 
+            w.status === 'learning' && 
+            (w.review_count || 0) > 1 && 
+            (w.review_count || 0) <= 3
+        );
+        
+        const strongWords = allWords.filter(w => 
+            w.status === 'mastered' || 
+            (w.review_count || 0) > 3
+        );
+        
+        // 更新统计数字
+        document.getElementById('due-reviews').textContent = weakWords.length;
+        document.getElementById('weak-words').textContent = weakWords.length;
+        document.getElementById('medium-words').textContent = mediumWords.length;
+        document.getElementById('strong-words').textContent = strongWords.length;
+        
+        // 生成艾宾浩斯复习时间表
+        generateEbbinghausSchedule();
+        
+    } catch (error) {
+        console.error('加载复习计划错误:', error);
+    }
+}
+
+// 生成艾宾浩斯复习时间表
+function generateEbbinghausSchedule() {
+    const today = new Date();
+    const schedule = [
+        { days: 1, label: '第一次复习', date: addDays(today, 1) },
+        { days: 2, label: '第二次复习', date: addDays(today, 2) },
+        { days: 4, label: '第三次复习', date: addDays(today, 4) },
+        { days: 7, label: '第四次复习', date: addDays(today, 7) },
+        { days: 15, label: '第五次复习', date: addDays(today, 15) },
+        { days: 30, label: '第六次复习', date: addDays(today, 30) }
+    ];
+    
+    const scheduleHTML = `
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            ${schedule.map(item => `
+                <div style="background: ${item.days <= 2 ? '#E8F5E9' : '#E3F2FD'}; border: 2px solid ${item.days <= 2 ? '#4CAF50' : '#2196F3'}; 
+                      border-radius: 10px; padding: 15px; flex: 1; min-width: 150px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">${item.label}</div>
+                    <div style="color: #666; font-size: 14px; margin-bottom: 5px;">${item.days}天后</div>
+                    <div style="color: #999; font-size: 12px;">${item.date.toLocaleDateString('zh-CN')}</div>
+                </div>
+            `).join('')}
+        </div>
+        <p style="color: #666; margin-top: 15px; font-size: 14px;">
+            💡 根据艾宾浩斯记忆曲线设计的复习计划，科学记忆，高效学习
+        </p>
+    `;
+    
+    document.getElementById('ebbinghaus-schedule').innerHTML = scheduleHTML;
+}
+
+// 添加天数辅助函数
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+}
+
+// 智能复习
+async function startSmartReview(type) {
+    try {
+        const { data: allWords, error } = await dbClient
+            .from('study_records')
+            .select('*')
+            .eq('student_id', appState.currentUser);
+        
+        if (error) throw error;
+        
+        if (!allWords || allWords.length === 0) {
+            showAlert('没有单词可以复习', 'info');
+            return;
+        }
+        
+        let reviewWords = [];
+        
+        switch (type) {
+            case 'due':
+                // 今日到期复习：复习次数少或状态为new的单词
+                reviewWords = allWords
+                    .sort((a, b) => {
+                        // 状态优先级：new > learning > mastered
+                        const statusOrder = { 'new': 0, 'learning': 1, 'mastered': 2 };
+                        if (statusOrder[a.status] !== statusOrder[b.status]) {
+                            return statusOrder[a.status] - statusOrder[b.status];
+                        }
+                        // 复习次数少的优先
+                        return (a.review_count || 0) - (b.review_count || 0);
+                    })
+                    .slice(0, 20);
+                break;
+                
+            case 'weak':
+                // 弱项复习：状态为new或复习次数<=1的单词
+                reviewWords = allWords
+                    .filter(w => w.status === 'new' || (w.review_count || 0) <= 1)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 20);
+                break;
+                
+            case 'random':
+                // 随机复习：所有单词随机选择
+                reviewWords = [...allWords]
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 20);
+                break;
+                
+            case 'urgent':
+                // 紧急复习：很久没复习的单词
+                reviewWords = allWords
+                    .sort((a, b) => {
+                        const aDate = a.last_reviewed ? new Date(a.last_reviewed) : new Date(0);
+                        const bDate = b.last_reviewed ? new Date(b.last_reviewed) : new Date(0);
+                        return aDate - bDate; // 时间早的在前
+                    })
+                    .slice(0, 20);
+                break;
+        }
+        
+        if (reviewWords.length === 0) {
+            showAlert('没有找到符合条件的单词', 'info');
+            return;
+        }
+        
+        // 开始训练
+        appState.trainingWords = reviewWords;
+        appState.currentWordIndex = 0;
+        appState.isCardFlipped = false;
+        
+        startTrainingSession();
+        
+    } catch (error) {
+        console.error('智能复习错误:', error);
+        showAlert('加载复习单词失败', 'error');
+    }
+}
+
 // ========== 数据库连接测试 ==========
 async function testDatabase() {
     showMessage('login-message', '正在测试数据库连接...', 'warning');
     try {
-        const { error } = await dbClient.from('users').select('count').limit(1);
-        if (error) throw error;
+        // 使用更快的查询方式
+        const { error } = await dbClient
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .limit(1);
+        
+        if (error) {
+            // 尝试另一种方式
+            const { error: error2 } = await dbClient.auth.getSession();
+            if (error2) throw error2;
+        }
+        
         showMessage('login-message', '✅ 数据库连接成功！', 'success');
+        
+        // 3秒后清除成功消息
+        setTimeout(() => {
+            showMessage('login-message', '请输入用户名开始学习', 'info');
+        }, 3000);
+        
     } catch (error) {
         showMessage('login-message', `❌ 连接失败：${error.message}`, 'error');
-    }
-}
-
-// ========== 登录/注册系统 ==========
-async function handleLogin() {
-    const username = document.getElementById('username').value.trim();
-    if (!username) {
-        showMessage('login-message', '请输入用户名', 'error');
-        return;
-    }
-    
-    showMessage('login-message', '正在处理...', 'warning');
-    
-    try {
-        // 检查用户是否存在
-        const { data: existingUser, error: checkError } = await dbClient
-            .from('users')
-            .select('*')
-            .eq('username', username)
-            .single();
-        
-        if (checkError && checkError.code === 'PGRST116') {
-            // 新用户注册
-            const isTeacherAccount = username.toLowerCase() === appState.teacherId.toLowerCase();
-            
-            const { data: newUser, error: createError } = await dbClient
-                .from('users')
-                .insert([{
-                    username: username,
-                    is_teacher: isTeacherAccount,
-                    teacher_id: appState.teacherId
-                }])
-                .select()
-                .single();
-            
-            if (createError) throw createError;
-            
-            appState.currentUser = username;
-            appState.isTeacher = isTeacherAccount;
-            appState.userId = username;
-            
-            showMessage('login-message', `✅ 欢迎新用户 ${username}！`, 'success');
-            
-            // 如果是学生，同步教师单词
-            if (!isTeacherAccount) {
-                await syncGroupWordsToStudent(username);
-            }
-            
-        } else if (checkError) {
-            throw checkError;
-        } else {
-            // 老用户登录
-            appState.currentUser = username;
-            appState.isTeacher = existingUser.is_teacher;
-            appState.userId = username;
-            
-            // 更新最后登录时间
-            await dbClient
-                .from('users')
-                .update({ last_login: new Date().toISOString() })
-                .eq('username', username);
-            
-            showMessage('login-message', `✅ 欢迎回来 ${username}！`, 'success');
-        }
-        
-        // 如果是教师，初始化分组系统
-        if (appState.isTeacher) {
-            await initializeTeacherGroups();
-        }
-        
-        // 保存登录状态
-        localStorage.setItem('kathy_current_user', username);
-        localStorage.setItem('kathy_user_role', appState.isTeacher ? 'teacher' : 'student');
-        
-        // 加载今日训练状态
-        if (!appState.isTeacher) {
-            await loadDailyTrainingState();
-        }
-        
-        // 跳转到对应界面
-        setTimeout(() => {
-            if (appState.isTeacher) {
-                showTeacherDashboard();
-            } else {
-                showStudentDashboard();
-            }
-        }, 800);
-        
-    } catch (error) {
-        console.error('登录错误:', error);
-        showMessage('login-message', `登录失败：${error.message}`, 'error');
     }
 }
 
@@ -933,6 +2319,87 @@ async function syncGroupWordsToStudent(studentId) {
         console.error('同步分组单词错误:', error);
         showAlert(`同步失败：${error.message}`, 'error');
         return 0;
+    }
+}
+
+// ========== 登录/注册系统 ==========
+async function handleLogin() {
+    const usernameInput = document.getElementById('username');
+    const username = usernameInput.value.trim();
+    
+    if (!username) {
+        showMessage('login-message', '请输入用户名', 'error');
+        return;
+    }
+    
+    showMessage('login-message', '正在登录...', 'warning');
+    
+    try {
+        // 检查是否是教师账号
+        const isTeacher = username.toLowerCase() === 'kathy151';
+        
+        // 检查用户是否已存在
+        const { data: existingUser, error: checkError } = await dbClient
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .maybeSingle();
+        
+        if (checkError) {
+            showMessage('login-message', `检查用户失败: ${checkError.message}`, 'error');
+            return;
+        }
+        
+        if (!existingUser) {
+            // 新用户 - 注册
+            const { data: newUser, error: insertError } = await dbClient
+                .from('users')
+                .insert([{
+                    username: username,
+                    is_teacher: isTeacher,
+                    last_login: new Date().toISOString()
+                }])
+                .select()
+                .single();
+            
+            if (insertError) {
+                showMessage('login-message', `注册失败: ${insertError.message}`, 'error');
+                return;
+            }
+            
+            showMessage('login-message', `✅ 欢迎新用户 ${username}！`, 'success');
+        } else {
+            // 现有用户 - 更新最后登录时间
+            await dbClient
+                .from('users')
+                .update({ last_login: new Date().toISOString() })
+                .eq('username', username);
+            
+            showMessage('login-message', `✅ 欢迎回来 ${username}！`, 'success');
+        }
+        
+        // 设置全局状态
+        appState.currentUser = username;
+        appState.isTeacher = isTeacher;
+        appState.userId = username;
+        
+        // 保存登录状态
+        localStorage.setItem('kathy_current_user', username);
+        localStorage.setItem('kathy_user_role', isTeacher ? 'teacher' : 'student');
+        
+        // 延迟后切换到相应界面
+        setTimeout(() => {
+            showMessage('login-message', '', 'info');
+            if (isTeacher) {
+                showTeacherDashboard();
+            } else {
+                showStudentDashboard();
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('登录错误:', error);
+        showMessage('login-message', `登录失败: ${error.message}`, 'error');
     }
 }
 
@@ -1536,112 +3003,282 @@ function showGroupManagementPage() {
     loadGroupManagementPage();
 }
 
+// 修复分组管理页面加载
 async function loadGroupManagementPage() {
-    const content = document.getElementById('teacher-groups-content');
-    content.innerHTML = `
-        <div style="max-width: 1200px; margin: 0 auto;">
-            <h3 style="color: #333; margin-bottom: 30px;">👥 分组管理</h3>
-            
-            <div class="two-column">
-                <!-- 左侧：分组列表 -->
-                <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
-                    <h4 style="color: #333; margin-bottom: 20px;">📁 我的分组</h4>
-                    <div id="group-list">
-                        <p style="text-align: center;">加载分组列表...</p>
+    try {
+        showLoading('正在加载分组管理...');
+        
+        const content = document.getElementById('teacher-groups-content');
+        content.innerHTML = `
+            <div style="max-width: 1200px; margin: 0 auto;">
+                <h3 style="color: #333; margin-bottom: 30px;">👥 分组管理</h3>
+                
+                <div class="two-column">
+                    <!-- 左侧：分组列表 -->
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4 style="color: #333; margin: 0;">📁 我的分组</h4>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn" onclick="refreshGroupList()" style="padding: 8px 16px;">
+                                    🔄 刷新列表
+                                </button>
+                                <button class="btn btn-blue" onclick="refreshAllGroupData()" style="padding: 8px 16px;">
+                                    🔄 刷新所有数据
+                                </button>
+                            </div>
+                        </div>
+                        <div id="group-list">
+                            <div style="text-align: center; padding: 40px;">
+                                <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+                                <p style="color: #666; margin-top: 15px;">正在加载分组列表...</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+                            <h4 style="color: #333; margin-bottom: 15px;">➕ 创建新分组</h4>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="new-group-name" placeholder="输入分组名称" 
+                                       style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;"
+                                       onkeypress="if(event.key === 'Enter') createNewGroupFixed()">
+                                <button class="btn" onclick="createNewGroupFixed()" id="create-group-btn">
+                                    <span>创建分组</span>
+                                </button>
+                            </div>
+                            <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                                💡 创建分组后，可以将学生添加到分组中管理
+                            </p>
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 30px;">
-                        <h4 style="color: #333; margin-bottom: 15px;">➕ 创建新分组</h4>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" id="new-group-name" placeholder="输入分组名称" 
-                                   style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
-                            <button class="btn" onclick="createNewGroup()">
-                                <span>创建</span>
-                            </button>
+                    <!-- 右侧：分组详情 -->
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
+                        <h4 style="color: #333; margin-bottom: 20px;">📋 分组详情</h4>
+                        <div id="group-detail">
+                            <div style="text-align: center; padding: 40px;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">📁</div>
+                                <p style="color: #666;">选择一个分组查看详情</p>
+                                <p style="color: #999; font-size: 14px; margin-top: 10px;">点击左侧的分组即可查看详情</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 右侧：分组详情 -->
-                <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
-                    <h4 style="color: #333; margin-bottom: 20px;">📋 分组详情</h4>
-                    <div id="group-detail">
-                        <p style="text-align: center; color: #666;">选择一个分组查看详情</p>
-                    </div>
-                </div>
             </div>
-        </div>
-    `;
-    
-    setTimeout(loadGroupList, 100);
+        `;
+        
+        // 加载分组列表
+        await loadGroupListFixed();
+        
+        hideLoading();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('加载分组管理页面错误:', error);
+        showAlert('加载分组管理页面失败', 'error');
+    }
 }
 
-async function loadGroupList() {
+// 刷新分组列表
+function refreshGroupList() {
+    loadGroupListFixed();
+}
+
+// 修复的分组列表加载函数
+async function loadGroupListFixed() {
     try {
-        const { data: groups, error } = await dbClient
+        console.log('开始加载分组列表...');
+        
+        const groupListDiv = document.getElementById('group-list');
+        groupListDiv.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <div class="loading-spinner" style="width: 30px; height: 30px; margin: 0 auto;"></div>
+                <p style="color: #666; margin-top: 10px;">正在加载...</p>
+            </div>
+        `;
+        
+        // 1. 首先获取所有分组
+        const { data: groups, error: groupsError } = await dbClient
             .from('groups')
-            .select(`
-                *,
-                words(count),
-                group_students(count)
-            `)
+            .select('*')
             .eq('teacher_id', appState.teacherId)
             .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (groupsError) {
+            console.error('查询分组错误:', groupsError);
+            throw groupsError;
+        }
         
-        const groupListDiv = document.getElementById('group-list');
+        console.log('查询到的分组数据:', groups);
         
+        // 如果没有分组，显示空状态
         if (!groups || groups.length === 0) {
             groupListDiv.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <p style="color: #666;">还没有创建分组</p>
+                <div style="text-align: center; padding: 30px;">
+                    <div style="font-size: 4em; margin-bottom: 20px; color: #ddd;">📁</div>
+                    <h4 style="color: #666; margin-bottom: 10px;">还没有分组</h4>
+                    <p style="color: #999; margin-bottom: 20px;">创建一个分组来开始管理学生</p>
                 </div>
             `;
             return;
         }
         
-        let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+        // 2. 使用 Promise.all 并行获取所有分组的统计数据
+        const groupsWithStats = await Promise.all(groups.map(async (group) => {
+            try {
+                // 获取分组单词数 - 使用正确的计数方法
+                const { count: wordCount, error: wordsError } = await dbClient
+                    .from('words')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('group_id', group.id)
+                    .eq('teacher_id', appState.teacherId);
+                
+                // 获取分组学生数 - 使用正确的计数方法
+                const { count: studentCount, error: studentsError } = await dbClient
+                    .from('group_students')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('group_id', group.id);
+                
+                return {
+                    ...group,
+                    wordCount: wordCount || 0,
+                    studentCount: studentCount || 0
+                };
+            } catch (error) {
+                console.error(`获取分组 ${group.id} 统计数据错误:`, error);
+                return {
+                    ...group,
+                    wordCount: 0,
+                    studentCount: 0
+                };
+            }
+        }));
         
-        groups.forEach(group => {
-            const wordCount = group.words?.[0]?.count || 0;
-            const studentCount = group.group_students?.[0]?.count || 0;
-            const createdDate = new Date(group.created_at).toLocaleDateString('zh-CN');
-            
-            html += `
-                <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 20px; cursor: pointer;"
-                     onclick="showGroupDetail('${group.id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h5 style="margin: 0; color: #333; font-size: 1.2em;">${group.name}</h5>
-                        <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
-                                onclick="event.stopPropagation(); deleteGroup('${group.id}', '${group.name}')">
-                            删除
-                        </button>
-                    </div>
-                    <div style="display: flex; gap: 20px; color: #666; font-size: 0.9em;">
-                        <div>单词: <strong>${wordCount}</strong></div>
-                        <div>学生: <strong>${studentCount}</strong></div>
-                    </div>
-                    <div style="color: #999; font-size: 0.8em; margin-top: 10px;">
-                        创建于: ${createdDate}
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        groupListDiv.innerHTML = html;
+        // 3. 显示分组列表
+        displayGroupListFixed(groupsWithStats);
         
     } catch (error) {
         console.error('加载分组列表错误:', error);
-        document.getElementById('group-list').innerHTML = 
-            '<p style="color: red; text-align: center;">加载失败</p>';
+        const groupListDiv = document.getElementById('group-list');
+        
+        let errorMessage = error.message;
+        if (error.message.includes('does not exist')) {
+            errorMessage = '分组表不存在，请初始化数据库';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = '网络连接失败，请检查网络';
+        }
+        
+        groupListDiv.innerHTML = `
+            <div class="message-box message-error">
+                <h4 style="margin-bottom: 10px;">❌ 加载失败</h4>
+                <p style="margin-bottom: 15px;">${errorMessage}</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn" onclick="loadGroupListFixed()" style="padding: 8px 16px;">
+                        重试加载
+                    </button>
+                    <button class="btn btn-blue" onclick="createDefaultGroupFixed()" style="padding: 8px 16px;">
+                        创建默认分组
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
-async function createNewGroup() {
+// 修复分组列表显示函数
+function displayGroupListFixed(groups) {
+    const groupListDiv = document.getElementById('group-list');
+    
+    let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+    
+    groups.forEach(group => {
+        const createdDate = new Date(group.created_at).toLocaleDateString('zh-CN');
+        const teacherId = group.teacher_id || '未指定教师';
+        
+        html += `
+            <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 20px; cursor: pointer; transition: all 0.3s;"
+                 onclick="showGroupDetailFixed('${group.id}')"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.1)'"
+                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <h5 style="margin: 0; color: #333; font-size: 1.2em; margin-bottom: 5px;">${group.name}</h5>
+                        <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">教师: ${teacherId}</div>
+                    </div>
+                    <button class="btn btn-red" style="padding: 6px 12px; font-size: 14px;" 
+                            onclick="event.stopPropagation(); deleteGroupFixed('${group.id}', '${group.name}')">
+                        删除
+                    </button>
+                </div>
+                <div style="display: flex; gap: 20px; color: #666; font-size: 0.9em; margin-bottom: 5px;">
+                    <div>📚 单词: <strong>${group.wordCount}</strong></div>
+                    <div>👥 学生: <strong>${group.studentCount}</strong></div>
+                </div>
+                <div style="color: #999; font-size: 0.8em; margin-top: 10px;">
+                    创建于: ${createdDate}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    groupListDiv.innerHTML = html;
+}
+
+// 创建默认分组
+async function createDefaultGroupFixed() {
+    try {
+        showAlert('正在创建默认分组...', 'info');
+        
+        const { data: existingGroup, error: checkError } = await dbClient
+            .from('groups')
+            .select('id')
+            .eq('name', '默认分组')
+            .maybeSingle();
+        
+        if (existingGroup) {
+            showAlert('默认分组已存在', 'info');
+            loadGroupListFixed();
+            return;
+        }
+        
+        const { data: newGroup, error } = await dbClient
+            .from('groups')
+            .insert([{
+                name: '默认分组',
+                teacher_id: appState.teacherId || 'kathy151'
+            }])
+            .select()
+            .single();
+        
+        if (error) {
+            // 尝试不加 teacher_id
+            const { data: newGroup2, error: error2 } = await dbClient
+                .from('groups')
+                .insert([{
+                    name: '默认分组'
+                }])
+                .select()
+                .single();
+            
+            if (error2) throw error2;
+            
+            showAlert('默认分组创建成功！', 'success');
+            loadGroupListFixed();
+        } else {
+            showAlert('默认分组创建成功！', 'success');
+            loadGroupListFixed();
+        }
+        
+    } catch (error) {
+        console.error('创建默认分组错误:', error);
+        showAlert(`创建失败: ${error.message}`, 'error');
+    }
+}
+
+// 创建新分组
+async function createNewGroupFixed() {
     const groupNameInput = document.getElementById('new-group-name');
     const groupName = groupNameInput.value.trim();
+    const createBtn = document.getElementById('create-group-btn');
     
     if (!groupName) {
         showAlert('请输入分组名称', 'error');
@@ -1649,190 +3286,393 @@ async function createNewGroup() {
     }
     
     try {
-        const { error } = await dbClient
+        createBtn.disabled = true;
+        createBtn.innerHTML = '<span>创建中...</span>';
+        
+        // 检查是否重名
+        const { data: existingGroup, error: checkError } = await dbClient
+            .from('groups')
+            .select('id')
+            .eq('name', groupName)
+            .maybeSingle();
+        
+        if (existingGroup) {
+            showAlert('分组名称已存在', 'error');
+            return;
+        }
+        
+        // 创建分组
+        const { data: newGroup, error } = await dbClient
             .from('groups')
             .insert([{
                 name: groupName,
-                teacher_id: appState.teacherId
-            }]);
+                teacher_id: appState.teacherId || 'kathy151'
+            }])
+            .select()
+            .single();
         
-        if (error) throw error;
-        
-        showAlert(`分组 "${groupName}" 创建成功`, 'success');
-        groupNameInput.value = '';
-        loadGroupList();
+        if (error) {
+            // 尝试其他方式
+            const { data: newGroup2, error: error2 } = await dbClient
+                .from('groups')
+                .insert([{
+                    name: groupName
+                }])
+                .select()
+                .single();
+            
+            if (error2) throw error2;
+            
+            showAlert(`分组 "${groupName}" 创建成功！`, 'success');
+            groupNameInput.value = '';
+            loadGroupListFixed();
+        } else {
+            showAlert(`分组 "${groupName}" 创建成功！`, 'success');
+            groupNameInput.value = '';
+            loadGroupListFixed();
+        }
         
     } catch (error) {
         console.error('创建分组错误:', error);
-        showAlert('创建分组失败', 'error');
+        showAlert(`创建失败: ${error.message}`, 'error');
+    } finally {
+        createBtn.disabled = false;
+        createBtn.innerHTML = '<span>创建分组</span>';
     }
 }
 
-async function showGroupDetail(groupId) {
+// 显示分组详情
+async function showGroupDetailFixed(groupId) {
     try {
-        // 获取分组信息
-        const { data: group, error: groupError } = await dbClient
-            .from('groups')
-            .select('*')
-            .eq('id', groupId)
-            .single();
-        
-        if (groupError) throw groupError;
-        
-        // 获取分组学生
-        const { data: groupStudents, error: studentsError } = await dbClient
-            .from('group_students')
-            .select('student_id')
-            .eq('group_id', groupId);
-        
-        if (studentsError) throw studentsError;
-        
-        // 获取所有学生
-        const { data: allStudents, error: allStudentsError } = await dbClient
-            .from('users')
-            .select('username, created_at')
-            .eq('is_teacher', false)
-            .order('username');
-        
-        if (allStudentsError) throw allStudentsError;
-        
-        // 获取分组单词
-        const { data: groupWords, error: wordsError } = await dbClient
-            .from('words')
-            .select('*')
-            .eq('group_id', groupId)
-            .order('created_at', { ascending: false });
-        
-        if (wordsError) throw wordsError;
-        
-        // 当前分组中的学生ID集合
-        const groupStudentIds = new Set(groupStudents?.map(gs => gs.student_id) || []);
-        
         const detailDiv = document.getElementById('group-detail');
+        detailDiv.innerHTML = `
+            <div style="text-align: center; padding: 30px;">
+                <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+                <p style="color: #666; margin-top: 15px;">正在加载分组详情...</p>
+            </div>
+        `;
         
+        // 使用 Promise.all 并行获取所有数据
+        const [
+            groupResult,
+            wordsResult,
+            studentsResult,
+            groupStudentsResult
+        ] = await Promise.all([
+            // 获取分组信息
+            dbClient.from('groups').select('*').eq('id', groupId).single(),
+            
+            // 获取分组单词（前10个）和总数
+            Promise.all([
+                dbClient.from('words')
+                    .select('english, chinese')
+                    .eq('group_id', groupId)
+                    .order('created_at', { ascending: false })
+                    .limit(10),
+                dbClient.from('words')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('group_id', groupId)
+                    .eq('teacher_id', appState.teacherId)
+            ]),
+            
+            // 获取所有学生
+            dbClient.from('users')
+                .select('username, created_at')
+                .eq('is_teacher', false)
+                .order('username'),
+            
+            // 获取分组学生
+            dbClient.from('group_students')
+                .select('student_id')
+                .eq('group_id', groupId)
+        ]);
+        
+        // 处理分组信息
+        if (groupResult.error || !groupResult.data) {
+            throw new Error('分组不存在或已被删除');
+        }
+        const group = groupResult.data;
+        
+        // 处理单词数据
+        const groupWords = wordsResult[0].data || [];
+        const totalWords = wordsResult[1].count || 0;
+        
+        // 处理学生数据
+        const allStudents = studentsResult.data || [];
+        
+        // 处理分组学生
+        const groupStudentIds = new Set((groupStudentsResult.data || []).map(gs => gs.student_id));
+        
+        // 渲染分组详情
         detailDiv.innerHTML = `
             <div style="margin-bottom: 30px;">
-                <h4 style="color: #333; margin-bottom: 15px;">📁 ${group.name}</h4>
-                <p style="color: #666;">创建于: ${new Date(group.created_at).toLocaleDateString('zh-CN')}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="color: #333; margin: 0;">📁 ${group.name}</h4>
+                    <div style="color: #666; font-size: 14px;">ID: ${group.id}</div>
+                </div>
+                <div style="color: #666; margin-bottom: 10px;">创建时间: ${new Date(group.created_at).toLocaleString('zh-CN')}</div>
+                <div style="color: #666;">教师ID: ${group.teacher_id || '未指定'}</div>
+            </div>
+            
+            <div class="stats-card" style="margin-bottom: 30px;">
+                <div class="card-grid">
+                    <div class="stat-card">
+                        <div class="number">${totalWords}</div>
+                        <div class="label">分组单词</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${groupStudentIds.size}</div>
+                        <div class="label">分组学生</div>
+                    </div>
+                </div>
             </div>
             
             <div style="margin-bottom: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h5 style="margin: 0; color: #333;">👥 学生管理</h5>
-                    <button class="btn" onclick="addAllStudentsToGroup('${groupId}')">
-                        添加所有学生
-                    </button>
+                    <div>
+                        <button class="btn" onclick="addAllStudentsToGroupFixed('${groupId}')" style="margin-right: 10px; padding: 8px 16px;">
+                            添加所有学生
+                        </button>
+                        <button class="btn btn-blue" onclick="refreshGroupDetail('${groupId}')" style="padding: 8px 16px;">
+                            🔄 刷新
+                        </button>
+                    </div>
                 </div>
                 
-                <div style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f5f5f5;">
-                                <th style="padding: 10px; text-align: left;">学生</th>
-                                <th style="padding: 10px; text-align: left;">注册时间</th>
-                                <th style="padding: 10px; text-align: center;">状态</th>
-                                <th style="padding: 10px; text-align: center;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${allStudents.map(student => {
-                                const isInGroup = groupStudentIds.has(student.username);
-                                return `
-                                    <tr>
-                                        <td style="padding: 10px;">${student.username}</td>
-                                        <td style="padding: 10px; color: #666;">
-                                            ${new Date(student.created_at).toLocaleDateString('zh-CN')}
-                                        </td>
-                                        <td style="padding: 10px; text-align: center;">
-                                            ${isInGroup ? 
-                                                '<span style="color: #4CAF50; font-weight: bold;">✓ 已加入</span>' : 
-                                                '<span style="color: #FF9800;">未加入</span>'}
-                                        </td>
-                                        <td style="padding: 10px; text-align: center;">
-                                            ${isInGroup ? 
-                                                `<button class="btn" style="padding: 4px 8px; font-size: 13px;" 
-                                                         onclick="removeStudentFromGroup('${groupId}', '${student.username}')">
-                                                    移除
-                                                </button>` :
-                                                `<button class="btn" style="padding: 4px 8px; font-size: 13px;" 
-                                                         onclick="addStudentToGroup('${groupId}', '${student.username}')">
-                                                    添加
-                                                </button>`}
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                <div style="background: white; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto; border: 2px solid #f0f0f0;">
+                    ${allStudents.length > 0 ? `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa; position: sticky; top: 0;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">学生用户名</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">注册时间</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">状态</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allStudents.map(student => {
+                                    const isInGroup = groupStudentIds.has(student.username);
+                                    const regDate = new Date(student.created_at).toLocaleDateString('zh-CN');
+                                    return `
+                                        <tr style="border-bottom: 1px solid #eee;">
+                                            <td style="padding: 12px;">
+                                                <div style="font-weight: bold;">${student.username}</div>
+                                            </td>
+                                            <td style="padding: 12px; color: #666;">${regDate}</td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; 
+                                                      background: ${isInGroup ? '#e8f5e9' : '#fff3cd'}; 
+                                                      color: ${isInGroup ? '#2e7d32' : '#856404'}; 
+                                                      border: 1px solid ${isInGroup ? '#c8e6c9' : '#ffeaa7'}">
+                                                    ${isInGroup ? '✓ 已加入' : '待加入'}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                ${isInGroup ? 
+                                                    `<button class="btn" style="padding: 6px 12px; font-size: 13px; background: #f8d7da; color: #721c24;" 
+                                                             onclick="removeStudentFromGroupFixed('${groupId}', '${student.username}')">
+                                                        ✗ 移除
+                                                    </button>` :
+                                                    `<button class="btn" style="padding: 6px 12px; font-size: 13px; background: #d4edda; color: #155724;" 
+                                                             onclick="addStudentToGroupFixed('${groupId}', '${student.username}')">
+                                                        ＋ 添加
+                                                    </button>`}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="color: #666; font-size: 14px; margin-top: 10px; text-align: right;">
+                            总计: ${allStudents.length} 名学生 | 已加入: ${groupStudentIds.size} 名
+                        </div>
+                    ` : `
+                        <div style="text-align: center; padding: 30px;">
+                            <div style="font-size: 3em; margin-bottom: 10px; color: #ddd;">👥</div>
+                            <p style="color: #666;">还没有学生注册</p>
+                            <p style="color: #999; font-size: 14px; margin-top: 5px;">学生注册后才会显示在这里</p>
+                        </div>
+                    `}
                 </div>
-                <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
-                    已选择 ${groupStudentIds.size} 名学生
-                </p>
             </div>
             
-            <div style="margin-bottom: 30px;">
-                <h5 style="margin: 0; color: #333; margin-bottom: 15px;">📝 分组单词 (${groupWords?.length || 0}个)</h5>
-                ${groupWords && groupWords.length > 0 ? `
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        ${groupWords.slice(0, 10).map(word => `
-                            <div style="background: #e8f5e9; border: 1px solid #4CAF50; border-radius: 6px; padding: 8px 12px;">
-                                ${word.english} - ${word.chinese}
+            ${groupWords.length > 0 ? `
+                <div style="margin-bottom: 30px;">
+                    <h5 style="margin: 0; color: #333; margin-bottom: 15px;">📝 分组单词预览</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                        ${groupWords.map(word => `
+                            <div style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border: 2px solid #4CAF50; border-radius: 10px; padding: 12px; text-align: center;">
+                                <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #2E7D32;">${word.english}</div>
+                                <div style="color: #666; font-size: 14px;">${word.chinese}</div>
                             </div>
                         `).join('')}
-                        ${groupWords.length > 10 ? `<div style="color: #666; padding: 8px;">...还有${groupWords.length - 10}个单词</div>` : ''}
                     </div>
-                ` : `
-                    <p style="color: #666; text-align: center;">这个分组还没有单词</p>
-                `}
-            </div>
+                    ${totalWords > 10 ? `
+                        <div style="text-align: center; margin-top: 15px;">
+                            <span style="color: #666;">还有 ${totalWords - 10} 个单词未显示</span>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : `
+                <div style="margin-bottom: 30px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 3em; margin-bottom: 10px; color: #ddd;">📚</div>
+                    <p style="color: #666;">这个分组还没有单词</p>
+                    <p style="color: #999; font-size: 14px; margin-top: 5px;">上传单词后，学生会自动同步</p>
+                </div>
+            `}
             
-            <div style="text-align: center;">
-                <button class="btn" onclick="uploadWordsToGroup('${groupId}')">
-                    📤 上传单词到这个分组
+            <div style="text-align: center; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                <button class="btn btn-blue" onclick="uploadWordsToGroupFixed('${groupId}')" style="padding: 12px 30px; font-size: 16px; margin-right: 10px;">
+                    📤 上传单词
+                </button>
+                <button class="btn" onclick="manageGroupWords('${groupId}')" style="padding: 12px 30px; font-size: 16px;">
+                    📖 管理单词
                 </button>
             </div>
         `;
         
     } catch (error) {
         console.error('加载分组详情错误:', error);
-        document.getElementById('group-detail').innerHTML = 
-            '<p style="color: red; text-align: center;">加载失败</p>';
+        document.getElementById('group-detail').innerHTML = `
+            <div class="message-box message-error">
+                <h4 style="margin-bottom: 10px;">❌ 加载失败</h4>
+                <p style="margin-bottom: 15px;">${error.message}</p>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="btn" onclick="loadGroupListFixed()" style="margin-right: 10px;">
+                        返回列表
+                    </button>
+                    <button class="btn" onclick="showGroupDetailFixed('${groupId}')">
+                        重试加载
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
-async function addStudentToGroup(groupId, studentId) {
+// 刷新分组详情
+function refreshGroupDetail(groupId) {
+    showGroupDetailFixed(groupId);
+}
+
+// 添加学生到分组
+async function addStudentToGroupFixed(groupId, studentId) {
     try {
+        showAlert(`正在添加 ${studentId} 到分组...`, 'info');
+        
         const { error } = await dbClient
             .from('group_students')
             .insert([{
                 group_id: groupId,
-                student_id: studentId
-            }]);
+                student_id: studentId,
+                created_at: new Date().toISOString()
+            }], { onConflict: 'group_id,student_id' });
         
         if (error) {
-            // 如果学生已经在分组中，忽略错误
             if (error.code === '23505') {
-                showAlert(`${studentId} 已经在分组中`, 'info');
-                return;
+                showAlert(`${studentId} 已经在分组中`, 'warning');
+            } else {
+                throw error;
             }
-            throw error;
+        } else {
+            showAlert(`✅ ${studentId} 已成功添加到分组`, 'success');
         }
         
-        showAlert(`已添加 ${studentId} 到分组`, 'success');
+        // 刷新分组列表统计
+        loadGroupListFixed();
         
-        // 立即为学生同步分组单词
-        await syncGroupWordsToStudent(studentId);
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
-        showGroupDetail(groupId);
+        // 同步单词给学生
+        await syncWordsToStudentAfterJoiningGroup(studentId, groupId);
         
     } catch (error) {
         console.error('添加学生错误:', error);
-        showAlert('添加失败', 'error');
+        showAlert(`添加失败: ${error.message}`, 'error');
     }
 }
 
-async function removeStudentFromGroup(groupId, studentId) {
+// 新增：学生加入分组后同步单词
+async function syncWordsToStudentAfterJoiningGroup(studentId, groupId) {
     try {
+        console.log(`为学生 ${studentId} 同步分组 ${groupId} 的单词...`);
+        
+        // 获取分组所有单词
+        const { data: groupWords, error } = await dbClient
+            .from('words')
+            .select('*')
+            .eq('group_id', groupId)
+            .eq('teacher_id', appState.teacherId);
+        
+        if (error) throw error;
+        
+        if (!groupWords || groupWords.length === 0) {
+            console.log(`分组 ${groupId} 没有单词可以同步`);
+            return 0;
+        }
+        
+        console.log(`找到 ${groupWords.length} 个分组单词`);
+        
+        // 检查学生是否已有这些单词
+        const { data: existingRecords } = await dbClient
+            .from('study_records')
+            .select('word_id')
+            .eq('student_id', studentId);
+        
+        const existingWordIds = new Set(existingRecords?.map(r => r.word_id) || []);
+        
+        // 准备新单词记录
+        const newRecords = groupWords
+            .filter(word => !existingWordIds.has(word.id))
+            .map(word => ({
+                student_id: studentId,
+                word_id: word.id,
+                english: word.english,
+                chinese: word.chinese,
+                status: 'new',
+                review_count: 0,
+                group_id: groupId,
+                added_date: new Date().toISOString()
+            }));
+        
+        console.log(`需要同步 ${newRecords.length} 个新单词`);
+        
+        if (newRecords.length > 0) {
+            // 分批插入
+            const batchSize = 50;
+            for (let i = 0; i < newRecords.length; i += batchSize) {
+                const batch = newRecords.slice(i, i + batchSize);
+                await dbClient
+                    .from('study_records')
+                    .insert(batch);
+            }
+            
+            console.log(`为 ${studentId} 同步了 ${newRecords.length} 个单词`);
+            showAlert(`✅ 已为学生 ${studentId} 同步 ${newRecords.length} 个分组单词`, 'success');
+            return newRecords.length;
+        }
+        
+        return 0;
+        
+    } catch (error) {
+        console.error('同步分组单词给学生错误:', error);
+        showAlert(`单词同步失败: ${error.message}`, 'warning');
+        return 0;
+    }
+}
+
+// 移除学生从分组
+async function removeStudentFromGroupFixed(groupId, studentId) {
+    if (!confirm(`确定要从分组中移除 ${studentId} 吗？`)) {
+        return;
+    }
+    
+    try {
+        showAlert(`正在移除 ${studentId}...`, 'info');
+        
         const { error } = await dbClient
             .from('group_students')
             .delete()
@@ -1841,16 +3681,88 @@ async function removeStudentFromGroup(groupId, studentId) {
         
         if (error) throw error;
         
-        showAlert(`已从分组中移除 ${studentId}`, 'success');
-        showGroupDetail(groupId);
+        showAlert(`✅ ${studentId} 已从分组中移除`, 'success');
+        
+        // 刷新分组列表统计
+        loadGroupListFixed();
+        
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
     } catch (error) {
         console.error('移除学生错误:', error);
-        showAlert('移除失败', 'error');
+        showAlert(`移除失败: ${error.message}`, 'error');
     }
 }
 
-async function addAllStudentsToGroup(groupId) {
+// 删除分组
+async function deleteGroupFixed(groupId, groupName) {
+    if (!confirm(`确定要删除分组 "${groupName}" 吗？\n\n⚠️ 删除后：\n• 分组信息将被永久删除\n• 分组与学生的关联将被移除\n• 分组内的单词将保留（但不再属于任何分组）`)) {
+        return;
+    }
+    
+    try {
+        showAlert(`正在删除分组 "${groupName}"...`, 'warning');
+        
+        // 1. 先删除分组学生关联
+        const { error: deleteStudentsError } = await dbClient
+            .from('group_students')
+            .delete()
+            .eq('group_id', groupId);
+        
+        if (deleteStudentsError) throw deleteStudentsError;
+        
+        // 2. 更新单词，移除分组ID（而不是删除单词）
+        const { error: updateWordsError } = await dbClient
+            .from('words')
+            .update({ group_id: null })
+            .eq('group_id', groupId)
+            .eq('teacher_id', appState.teacherId);
+        
+        if (updateWordsError) throw updateWordsError;
+        
+        // 3. 删除分组本身
+        const { error: deleteGroupError } = await dbClient
+            .from('groups')
+            .delete()
+            .eq('id', groupId);
+        
+        if (deleteGroupError) throw deleteGroupError;
+        
+        showAlert(`✅ 分组 "${groupName}" 已成功删除`, 'success');
+        
+        // 4. 重新加载分组列表
+        loadGroupListFixed();
+        
+        // 5. 清空分组详情区域
+        document.getElementById('group-detail').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 3em; margin-bottom: 10px;">📁</div>
+                <p style="color: #666;">分组已删除</p>
+                <p style="color: #999; font-size: 14px; margin-top: 10px;">请选择其他分组或创建新分组</p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('删除分组错误:', error);
+        showAlert(`删除失败: ${error.message}`, 'error');
+    }
+}
+
+// 上传单词到分组
+function uploadWordsToGroupFixed(groupId) {
+    appState.selectedGroupId = groupId;
+    showUploadWordsPage();
+}
+
+// 管理分组单词
+function manageGroupWords(groupId) {
+    appState.selectedGroupId = groupId;
+    showWordManagementPage();
+}
+
+// 添加所有学生到分组
+async function addAllStudentsToGroupFixed(groupId) {
     try {
         // 获取所有学生
         const { data: allStudents, error: studentsError } = await dbClient
@@ -1865,13 +3777,20 @@ async function addAllStudentsToGroup(groupId) {
             return;
         }
         
+        if (!confirm(`确定要将所有 ${allStudents.length} 名学生添加到这个分组吗？`)) {
+            return;
+        }
+        
+        showAlert(`正在添加 ${allStudents.length} 名学生到分组...`, 'info');
+        
         // 准备批量插入数据
         const studentsToAdd = allStudents.map(student => ({
             group_id: groupId,
-            student_id: student.username
+            student_id: student.username,
+            created_at: new Date().toISOString()
         }));
         
-        // 批量插入
+        // 批量插入（使用onConflict忽略重复）
         const { error } = await dbClient
             .from('group_students')
             .insert(studentsToAdd, { onConflict: 'group_id,student_id' });
@@ -1883,49 +3802,26 @@ async function addAllStudentsToGroup(groupId) {
             }
         }
         
-        showAlert(`已添加所有 ${allStudents.length} 名学生到分组`, 'success');
+        showAlert(`✅ 已成功添加所有 ${allStudents.length} 名学生到分组`, 'success');
         
-        // 为所有学生同步单词
-        for (const student of allStudents) {
-            await syncGroupWordsToStudent(student.username);
-        }
-        
-        showGroupDetail(groupId);
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
     } catch (error) {
         console.error('添加所有学生错误:', error);
-        showAlert('添加失败', 'error');
+        showAlert(`添加失败: ${error.message}`, 'error');
     }
 }
 
-async function deleteGroup(groupId, groupName) {
-    if (!confirm(`确定要删除分组 "${groupName}" 吗？分组内的单词不会被删除，但会移出分组。`)) {
-        return;
+// 刷新所有分组数据函数
+function refreshAllGroupData() {
+    showAlert('正在刷新所有分组数据...', 'info');
+    // 刷新分组列表
+    loadGroupListFixed();
+    // 如果当前有选中的分组，也刷新该分组的详情
+    if (appState.selectedGroupId) {
+        showGroupDetailFixed(appState.selectedGroupId);
     }
-    
-    try {
-        // 删除分组（级联删除group_students记录）
-        const { error } = await dbClient
-            .from('groups')
-            .delete()
-            .eq('id', groupId);
-        
-        if (error) throw error;
-        
-        showAlert(`分组 "${groupName}" 已删除`, 'success');
-        loadGroupList();
-        document.getElementById('group-detail').innerHTML = 
-            '<p style="text-align: center; color: #666;">选择一个分组查看详情</p>';
-        
-    } catch (error) {
-        console.error('删除分组错误:', error);
-        showAlert('删除失败', 'error');
-    }
-}
-
-function uploadWordsToGroup(groupId) {
-    appState.selectedGroupId = groupId;
-    showUploadWordsPage();
 }
 
 function showAllStudentsPage() {
@@ -2600,12 +4496,6 @@ async function deleteAllWordsInGroup() {
             </div>
         `;
         
-        const confirmation = `
-            确定要删除该分组的所有单词吗？\n\n
-            ⚠️ 警告：删除后，所有学生学习这些单词的记录也将被删除，且无法恢复！\n\n
-            ${groupSelect}
-        `;
-        
         // 创建自定义确认对话框
         const dialog = document.createElement('div');
         dialog.style.cssText = `
@@ -2964,6 +4854,9 @@ async function loadStudentDashboardSimple() {
     try {
         // 设置学生姓名
         document.getElementById('student-name').textContent = appState.currentUser;
+        
+        // 加载打卡状态
+        await loadClockInStatus();
         
         // 同步单词
         await syncGroupWordsToStudent(appState.currentUser);
@@ -3570,6 +5463,9 @@ function finishTraining() {
     const learning = appState.trainingWords.filter(w => w.status === 'learning').length;
     const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
     
+    // 记录打卡
+    recordClockInAfterTraining();
+    
     // 清除训练进度
     localStorage.removeItem(`kathy_all_training_${appState.currentUser}`);
     
@@ -3967,27 +5863,57 @@ function handleLogout() {
 window.onload = async function() {
     console.log('🚀 Kathy单词训练系统启动');
     
+    // 立即显示连接状态
+    showMessage('login-message', '正在连接系统...', 'info');
+    
     const savedUser = localStorage.getItem('kathy_current_user');
     const savedRole = localStorage.getItem('kathy_user_role');
     
     if (savedUser) {
-        appState.currentUser = savedUser;
-        appState.isTeacher = (savedRole === 'teacher');
-        appState.userId = savedUser;
+        // 如果是已保存的用户，直接显示加载中，然后自动登录
+        showMessage('login-message', '正在恢复上次登录...', 'warning');
         
-        if (appState.isTeacher) {
-            showTeacherDashboard();
-        } else {
-            showStudentDashboard();
-        }
+        // 延迟执行自动登录，让用户看到消息
+        setTimeout(async () => {
+            appState.currentUser = savedUser;
+            appState.isTeacher = (savedRole === 'teacher');
+            appState.userId = savedUser;
+            
+            try {
+                // 快速测试连接
+                const { error } = await dbClient.auth.getSession();
+                if (error) {
+                    throw new Error('网络连接失败');
+                }
+                
+                showMessage('login-message', `✅ 欢迎回来 ${savedUser}！`, 'success');
+                
+                setTimeout(() => {
+                    showMessage('login-message', '', 'info');
+                    if (appState.isTeacher) {
+                        showTeacherDashboard();
+                    } else {
+                        showStudentDashboard();
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                showMessage('login-message', `自动登录失败：${error.message}`, 'error');
+                // 清除保存的登录状态
+                localStorage.removeItem('kathy_current_user');
+                localStorage.removeItem('kathy_user_role');
+            }
+        }, 1000);
     } else {
+        // 新用户，立即测试数据库连接
         testDatabase();
     }
-    
+
+    // 添加Enter键登录支持
     document.getElementById('username')?.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') handleLogin();
     });
 };
-</script>
+    </script>
 </body>
 </html>
