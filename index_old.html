@@ -3003,112 +3003,283 @@ function showGroupManagementPage() {
     loadGroupManagementPage();
 }
 
+修复分组管理页面加载
+// 修复分组管理页面加载
 async function loadGroupManagementPage() {
-    const content = document.getElementById('teacher-groups-content');
-    content.innerHTML = `
-        <div style="max-width: 1200px; margin: 0 auto;">
-            <h3 style="color: #333; margin-bottom: 30px;">👥 分组管理</h3>
-            
-            <div class="two-column">
-                <!-- 左侧：分组列表 -->
-                <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
-                    <h4 style="color: #333; margin-bottom: 20px;">📁 我的分组</h4>
-                    <div id="group-list">
-                        <p style="text-align: center;">加载分组列表...</p>
+    try {
+        showLoading('正在加载分组管理...');
+        
+        const content = document.getElementById('teacher-groups-content');
+        content.innerHTML = `
+            <div style="max-width: 1200px; margin: 0 auto;">
+                <h3 style="color: #333; margin-bottom: 30px;">👥 分组管理</h3>
+                
+                <div class="two-column">
+                    <!-- 左侧：分组列表 -->
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4 style="color: #333; margin: 0;">📁 我的分组</h4>
+                            <button class="btn" onclick="refreshGroupList()" style="padding: 8px 16px;">
+                                🔄 刷新
+                            </button>
+                        </div>
+                        <div id="group-list">
+                            <div style="text-align: center; padding: 40px;">
+                                <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+                                <p style="color: #666; margin-top: 15px;">正在加载分组列表...</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+                            <h4 style="color: #333; margin-bottom: 15px;">➕ 创建新分组</h4>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="new-group-name" placeholder="输入分组名称" 
+                                       style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;"
+                                       onkeypress="if(event.key === 'Enter') createNewGroupFixed()">
+                                <button class="btn" onclick="createNewGroupFixed()" id="create-group-btn">
+                                    <span>创建分组</span>
+                                </button>
+                            </div>
+                            <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                                💡 创建分组后，可以将学生添加到分组中管理
+                            </p>
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 30px;">
-                        <h4 style="color: #333; margin-bottom: 15px;">➕ 创建新分组</h4>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" id="new-group-name" placeholder="输入分组名称" 
-                                   style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
-                            <button class="btn" onclick="createNewGroup()">
-                                <span>创建</span>
-                            </button>
+                    <!-- 右侧：分组详情 -->
+                    <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
+                        <h4 style="color: #333; margin-bottom: 20px;">📋 分组详情</h4>
+                        <div id="group-detail">
+                            <div style="text-align: center; padding: 40px;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">📁</div>
+                                <p style="color: #666;">选择一个分组查看详情</p>
+                                <p style="color: #999; font-size: 14px; margin-top: 10px;">点击左侧的分组即可查看详情</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 右侧：分组详情 -->
-                <div style="background: #f8f9fa; border-radius: 15px; padding: 25px;">
-                    <h4 style="color: #333; margin-bottom: 20px;">📋 分组详情</h4>
-                    <div id="group-detail">
-                        <p style="text-align: center; color: #666;">选择一个分组查看详情</p>
-                    </div>
-                </div>
             </div>
-        </div>
-    `;
-    
-    setTimeout(loadGroupList, 100);
+        `;
+        
+        // 加载分组列表
+        await loadGroupListFixed();
+        
+        hideLoading();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('加载分组管理页面错误:', error);
+        showAlert('加载分组管理页面失败', 'error');
+    }
 }
 
-async function loadGroupList() {
+// 刷新分组列表
+function refreshGroupList() {
+    loadGroupListFixed();
+}
+
+// 修复的分组列表加载函数
+async function loadGroupListFixed() {
     try {
-        const { data: groups, error } = await dbClient
-            .from('groups')
-            .select(`
-                *,
-                words(count),
-                group_students(count)
-            `)
-            .eq('teacher_id', appState.teacherId)
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
+        console.log('开始加载分组列表...');
         
         const groupListDiv = document.getElementById('group-list');
+        groupListDiv.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <div class="loading-spinner" style="width: 30px; height: 30px; margin: 0 auto;"></div>
+                <p style="color: #666; margin-top: 10px;">正在加载...</p>
+            </div>
+        `;
         
+        // 1. 首先获取所有分组
+        const { data: groups, error: groupsError } = await dbClient
+            .from('groups')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (groupsError) {
+            console.error('查询分组错误:', groupsError);
+            throw groupsError;
+        }
+        
+        console.log('查询到的分组数据:', groups);
+        
+        // 如果没有分组，显示空状态
         if (!groups || groups.length === 0) {
             groupListDiv.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <p style="color: #666;">还没有创建分组</p>
+                <div style="text-align: center; padding: 30px;">
+                    <div style="font-size: 4em; margin-bottom: 20px; color: #ddd;">📁</div>
+                    <h4 style="color: #666; margin-bottom: 10px;">还没有分组</h4>
+                    <p style="color: #999; margin-bottom: 20px;">创建一个分组来开始管理学生</p>
                 </div>
             `;
             return;
         }
         
-        let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+        // 2. 为每个分组获取统计数据
+        const groupsWithStats = [];
         
-        groups.forEach(group => {
-            const wordCount = group.words?.[0]?.count || 0;
-            const studentCount = group.group_students?.[0]?.count || 0;
-            const createdDate = new Date(group.created_at).toLocaleDateString('zh-CN');
-            
-            html += `
-                <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 20px; cursor: pointer;"
-                     onclick="showGroupDetail('${group.id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h5 style="margin: 0; color: #333; font-size: 1.2em;">${group.name}</h5>
-                        <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
-                                onclick="event.stopPropagation(); deleteGroup('${group.id}', '${group.name}')">
-                            删除
-                        </button>
-                    </div>
-                    <div style="display: flex; gap: 20px; color: #666; font-size: 0.9em;">
-                        <div>单词: <strong>${wordCount}</strong></div>
-                        <div>学生: <strong>${studentCount}</strong></div>
-                    </div>
-                    <div style="color: #999; font-size: 0.8em; margin-top: 10px;">
-                        创建于: ${createdDate}
-                    </div>
-                </div>
-            `;
-        });
+        for (const group of groups) {
+            try {
+                // 获取分组单词数
+                const { data: wordsData, error: wordsError } = await dbClient
+                    .from('words')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('group_id', group.id);
+                
+                const wordCount = wordsError ? 0 : (wordsData?.count || 0);
+                
+                // 获取分组学生数
+                const { data: studentsData, error: studentsError } = await dbClient
+                    .from('group_students')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('group_id', group.id);
+                
+                const studentCount = studentsError ? 0 : (studentsData?.count || 0);
+                
+                groupsWithStats.push({
+                    ...group,
+                    wordCount,
+                    studentCount
+                });
+                
+            } catch (error) {
+                console.error(`获取分组 ${group.id} 统计数据错误:`, error);
+                groupsWithStats.push({
+                    ...group,
+                    wordCount: 0,
+                    studentCount: 0
+                });
+            }
+        }
         
-        html += '</div>';
-        groupListDiv.innerHTML = html;
+        // 3. 显示分组列表
+        displayGroupListFixed(groupsWithStats);
         
     } catch (error) {
         console.error('加载分组列表错误:', error);
-        document.getElementById('group-list').innerHTML = 
-            '<p style="color: red; text-align: center;">加载失败</p>';
+        const groupListDiv = document.getElementById('group-list');
+        
+        let errorMessage = error.message;
+        if (error.message.includes('does not exist')) {
+            errorMessage = '分组表不存在，请初始化数据库';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = '网络连接失败，请检查网络';
+        }
+        
+        groupListDiv.innerHTML = `
+            <div class="message-box message-error">
+                <h4 style="margin-bottom: 10px;">❌ 加载失败</h4>
+                <p style="margin-bottom: 15px;">${errorMessage}</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn" onclick="loadGroupListFixed()" style="padding: 8px 16px;">
+                        重试加载
+                    </button>
+                    <button class="btn btn-blue" onclick="createDefaultGroupFixed()" style="padding: 8px 16px;">
+                        创建默认分组
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
-async function createNewGroup() {
+// 显示分组列表
+function displayGroupListFixed(groups) {
+    const groupListDiv = document.getElementById('group-list');
+    
+    let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+    
+    groups.forEach(group => {
+        const createdDate = new Date(group.created_at).toLocaleDateString('zh-CN');
+        const teacherId = group.teacher_id || '未指定教师';
+        
+        html += `
+            <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 20px; cursor: pointer; transition: all 0.3s;"
+                 onclick="showGroupDetailFixed('${group.id}')"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.1)'"
+                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <h5 style="margin: 0; color: #333; font-size: 1.2em; margin-bottom: 5px;">${group.name}</h5>
+                        <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">教师: ${teacherId}</div>
+                    </div>
+                    <button class="btn btn-red" style="padding: 6px 12px; font-size: 14px;" 
+                            onclick="event.stopPropagation(); deleteGroupFixed('${group.id}', '${group.name}')">
+                        删除
+                    </button>
+                </div>
+                <div style="display: flex; gap: 20px; color: #666; font-size: 0.9em; margin-bottom: 5px;">
+                    <div>📚 单词: <strong>${group.wordCount}</strong></div>
+                    <div>👥 学生: <strong>${group.studentCount}</strong></div>
+                </div>
+                <div style="color: #999; font-size: 0.8em; margin-top: 10px;">
+                    创建于: ${createdDate}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    groupListDiv.innerHTML = html;
+}
+
+// 创建默认分组
+async function createDefaultGroupFixed() {
+    try {
+        showAlert('正在创建默认分组...', 'info');
+        
+        const { data: existingGroup, error: checkError } = await dbClient
+            .from('groups')
+            .select('id')
+            .eq('name', '默认分组')
+            .maybeSingle();
+        
+        if (existingGroup) {
+            showAlert('默认分组已存在', 'info');
+            loadGroupListFixed();
+            return;
+        }
+        
+        const { data: newGroup, error } = await dbClient
+            .from('groups')
+            .insert([{
+                name: '默认分组',
+                teacher_id: appState.teacherId || 'kathy151'
+            }])
+            .select()
+            .single();
+        
+        if (error) {
+            // 尝试不加 teacher_id
+            const { data: newGroup2, error: error2 } = await dbClient
+                .from('groups')
+                .insert([{
+                    name: '默认分组'
+                }])
+                .select()
+                .single();
+            
+            if (error2) throw error2;
+            
+            showAlert('默认分组创建成功！', 'success');
+            loadGroupListFixed();
+        } else {
+            showAlert('默认分组创建成功！', 'success');
+            loadGroupListFixed();
+        }
+        
+    } catch (error) {
+        console.error('创建默认分组错误:', error);
+        showAlert(`创建失败: ${error.message}`, 'error');
+    }
+}
+
+// 创建新分组
+async function createNewGroupFixed() {
     const groupNameInput = document.getElementById('new-group-name');
     const groupName = groupNameInput.value.trim();
+    const createBtn = document.getElementById('create-group-btn');
     
     if (!groupName) {
         showAlert('请输入分组名称', 'error');
@@ -3116,27 +3287,72 @@ async function createNewGroup() {
     }
     
     try {
-        const { error } = await dbClient
+        createBtn.disabled = true;
+        createBtn.innerHTML = '<span>创建中...</span>';
+        
+        // 检查是否重名
+        const { data: existingGroup, error: checkError } = await dbClient
+            .from('groups')
+            .select('id')
+            .eq('name', groupName)
+            .maybeSingle();
+        
+        if (existingGroup) {
+            showAlert('分组名称已存在', 'error');
+            return;
+        }
+        
+        // 创建分组
+        const { data: newGroup, error } = await dbClient
             .from('groups')
             .insert([{
                 name: groupName,
-                teacher_id: appState.teacherId
-            }]);
+                teacher_id: appState.teacherId || 'kathy151'
+            }])
+            .select()
+            .single();
         
-        if (error) throw error;
-        
-        showAlert(`分组 "${groupName}" 创建成功`, 'success');
-        groupNameInput.value = '';
-        loadGroupList();
+        if (error) {
+            // 尝试其他方式
+            const { data: newGroup2, error: error2 } = await dbClient
+                .from('groups')
+                .insert([{
+                    name: groupName
+                }])
+                .select()
+                .single();
+            
+            if (error2) throw error2;
+            
+            showAlert(`分组 "${groupName}" 创建成功！`, 'success');
+            groupNameInput.value = '';
+            loadGroupListFixed();
+        } else {
+            showAlert(`分组 "${groupName}" 创建成功！`, 'success');
+            groupNameInput.value = '';
+            loadGroupListFixed();
+        }
         
     } catch (error) {
         console.error('创建分组错误:', error);
-        showAlert('创建分组失败', 'error');
+        showAlert(`创建失败: ${error.message}`, 'error');
+    } finally {
+        createBtn.disabled = false;
+        createBtn.innerHTML = '<span>创建分组</span>';
     }
 }
 
-async function showGroupDetail(groupId) {
+// 显示分组详情
+async function showGroupDetailFixed(groupId) {
     try {
+        const detailDiv = document.getElementById('group-detail');
+        detailDiv.innerHTML = `
+            <div style="text-align: center; padding: 30px;">
+                <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+                <p style="color: #666; margin-top: 15px;">正在加载分组详情...</p>
+            </div>
+        `;
+        
         // 获取分组信息
         const { data: group, error: groupError } = await dbClient
             .from('groups')
@@ -3144,162 +3360,259 @@ async function showGroupDetail(groupId) {
             .eq('id', groupId)
             .single();
         
-        if (groupError) throw groupError;
+        if (groupError || !group) {
+            throw new Error('分组不存在或已被删除');
+        }
         
-        // 获取分组学生
-        const { data: groupStudents, error: studentsError } = await dbClient
-            .from('group_students')
-            .select('student_id')
-            .eq('group_id', groupId);
-        
-        if (studentsError) throw studentsError;
+        // 获取分组单词（前10个）
+        let groupWords = [];
+        try {
+            const { data: wordsData } = await dbClient
+                .from('words')
+                .select('english, chinese')
+                .eq('group_id', groupId)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            groupWords = wordsData || [];
+        } catch (wordsError) {
+            console.warn('获取分组单词失败:', wordsError);
+        }
         
         // 获取所有学生
-        const { data: allStudents, error: allStudentsError } = await dbClient
-            .from('users')
-            .select('username, created_at')
-            .eq('is_teacher', false)
-            .order('username');
+        let allStudents = [];
+        try {
+            const { data: studentsData } = await dbClient
+                .from('users')
+                .select('username, created_at')
+                .eq('is_teacher', false)
+                .order('username');
+            allStudents = studentsData || [];
+        } catch (studentsError) {
+            console.warn('获取学生列表失败:', studentsError);
+        }
         
-        if (allStudentsError) throw allStudentsError;
+        // 获取分组学生
+        let groupStudentIds = new Set();
+        try {
+            const { data: groupStudentsData } = await dbClient
+                .from('group_students')
+                .select('student_id')
+                .eq('group_id', groupId);
+            
+            if (groupStudentsData) {
+                groupStudentIds = new Set(groupStudentsData.map(gs => gs.student_id));
+            }
+        } catch (gsError) {
+            console.warn('获取分组学生失败:', gsError);
+        }
         
-        // 获取分组单词
-        const { data: groupWords, error: wordsError } = await dbClient
-            .from('words')
-            .select('*')
-            .eq('group_id', groupId)
-            .order('created_at', { ascending: false });
+        // 获取分组单词总数
+        let totalWords = 0;
+        try {
+            const { data: wordsCountData } = await dbClient
+                .from('words')
+                .select('id', { count: 'exact', head: true })
+                .eq('group_id', groupId);
+            totalWords = wordsCountData?.count || 0;
+        } catch (countError) {
+            console.warn('获取单词总数失败:', countError);
+        }
         
-        if (wordsError) throw wordsError;
-        
-        // 当前分组中的学生ID集合
-        const groupStudentIds = new Set(groupStudents?.map(gs => gs.student_id) || []);
-        
-        const detailDiv = document.getElementById('group-detail');
-        
+        // 渲染分组详情
         detailDiv.innerHTML = `
             <div style="margin-bottom: 30px;">
-                <h4 style="color: #333; margin-bottom: 15px;">📁 ${group.name}</h4>
-                <p style="color: #666;">创建于: ${new Date(group.created_at).toLocaleDateString('zh-CN')}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="color: #333; margin: 0;">📁 ${group.name}</h4>
+                    <div style="color: #666; font-size: 14px;">ID: ${group.id}</div>
+                </div>
+                <div style="color: #666; margin-bottom: 10px;">创建时间: ${new Date(group.created_at).toLocaleString('zh-CN')}</div>
+                <div style="color: #666;">教师ID: ${group.teacher_id || '未指定'}</div>
+            </div>
+            
+            <div class="stats-card" style="margin-bottom: 30px;">
+                <div class="card-grid">
+                    <div class="stat-card">
+                        <div class="number">${totalWords}</div>
+                        <div class="label">分组单词</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${groupStudentIds.size}</div>
+                        <div class="label">分组学生</div>
+                    </div>
+                </div>
             </div>
             
             <div style="margin-bottom: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h5 style="margin: 0; color: #333;">👥 学生管理</h5>
-                    <button class="btn" onclick="addAllStudentsToGroup('${groupId}')">
-                        添加所有学生
-                    </button>
+                    <div>
+                        <button class="btn" onclick="addAllStudentsToGroupFixed('${groupId}')" style="margin-right: 10px; padding: 8px 16px;">
+                            添加所有学生
+                        </button>
+                        <button class="btn btn-blue" onclick="refreshGroupDetail('${groupId}')" style="padding: 8px 16px;">
+                            🔄 刷新
+                        </button>
+                    </div>
                 </div>
                 
-                <div style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f5f5f5;">
-                                <th style="padding: 10px; text-align: left;">学生</th>
-                                <th style="padding: 10px; text-align: left;">注册时间</th>
-                                <th style="padding: 10px; text-align: center;">状态</th>
-                                <th style="padding: 10px; text-align: center;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${allStudents.map(student => {
-                                const isInGroup = groupStudentIds.has(student.username);
-                                return `
-                                    <tr>
-                                        <td style="padding: 10px;">${student.username}</td>
-                                        <td style="padding: 10px; color: #666;">
-                                            ${new Date(student.created_at).toLocaleDateString('zh-CN')}
-                                        </td>
-                                        <td style="padding: 10px; text-align: center;">
-                                            ${isInGroup ? 
-                                                '<span style="color: #4CAF50; font-weight: bold;">✓ 已加入</span>' : 
-                                                '<span style="color: #FF9800;">未加入</span>'}
-                                        </td>
-                                        <td style="padding: 10px; text-align: center;">
-                                            ${isInGroup ? 
-                                                `<button class="btn" style="padding: 4px 8px; font-size: 13px;" 
-                                                         onclick="removeStudentFromGroup('${groupId}', '${student.username}')">
-                                                    移除
-                                                </button>` :
-                                                `<button class="btn" style="padding: 4px 8px; font-size: 13px;" 
-                                                         onclick="addStudentToGroup('${groupId}', '${student.username}')">
-                                                    添加
-                                                </button>`}
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                <div style="background: white; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto; border: 2px solid #f0f0f0;">
+                    ${allStudents.length > 0 ? `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa; position: sticky; top: 0;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">学生用户名</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">注册时间</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">状态</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allStudents.map(student => {
+                                    const isInGroup = groupStudentIds.has(student.username);
+                                    const regDate = new Date(student.created_at).toLocaleDateString('zh-CN');
+                                    return `
+                                        <tr style="border-bottom: 1px solid #eee;">
+                                            <td style="padding: 12px;">
+                                                <div style="font-weight: bold;">${student.username}</div>
+                                            </td>
+                                            <td style="padding: 12px; color: #666;">${regDate}</td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; 
+                                                      background: ${isInGroup ? '#e8f5e9' : '#fff3cd'}; 
+                                                      color: ${isInGroup ? '#2e7d32' : '#856404'}; 
+                                                      border: 1px solid ${isInGroup ? '#c8e6c9' : '#ffeaa7'}">
+                                                    ${isInGroup ? '✓ 已加入' : '待加入'}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                ${isInGroup ? 
+                                                    `<button class="btn" style="padding: 6px 12px; font-size: 13px; background: #f8d7da; color: #721c24;" 
+                                                             onclick="removeStudentFromGroupFixed('${groupId}', '${student.username}')">
+                                                        ✗ 移除
+                                                    </button>` :
+                                                    `<button class="btn" style="padding: 6px 12px; font-size: 13px; background: #d4edda; color: #155724;" 
+                                                             onclick="addStudentToGroupFixed('${groupId}', '${student.username}')">
+                                                        ＋ 添加
+                                                    </button>`}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="color: #666; font-size: 14px; margin-top: 10px; text-align: right;">
+                            总计: ${allStudents.length} 名学生 | 已加入: ${groupStudentIds.size} 名
+                        </div>
+                    ` : `
+                        <div style="text-align: center; padding: 30px;">
+                            <div style="font-size: 3em; margin-bottom: 10px; color: #ddd;">👥</div>
+                            <p style="color: #666;">还没有学生注册</p>
+                            <p style="color: #999; font-size: 14px; margin-top: 5px;">学生注册后才会显示在这里</p>
+                        </div>
+                    `}
                 </div>
-                <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
-                    已选择 ${groupStudentIds.size} 名学生
-                </p>
             </div>
             
-            <div style="margin-bottom: 30px;">
-                <h5 style="margin: 0; color: #333; margin-bottom: 15px;">📝 分组单词 (${groupWords?.length || 0}个)</h5>
-                ${groupWords && groupWords.length > 0 ? `
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        ${groupWords.slice(0, 10).map(word => `
-                            <div style="background: #e8f5e9; border: 1px solid #4CAF50; border-radius: 6px; padding: 8px 12px;">
-                                ${word.english} - ${word.chinese}
+            ${groupWords.length > 0 ? `
+                <div style="margin-bottom: 30px;">
+                    <h5 style="margin: 0; color: #333; margin-bottom: 15px;">📝 分组单词预览</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                        ${groupWords.map(word => `
+                            <div style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border: 2px solid #4CAF50; border-radius: 10px; padding: 12px; text-align: center;">
+                                <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #2E7D32;">${word.english}</div>
+                                <div style="color: #666; font-size: 14px;">${word.chinese}</div>
                             </div>
                         `).join('')}
-                        ${groupWords.length > 10 ? `<div style="color: #666; padding: 8px;">...还有${groupWords.length - 10}个单词</div>` : ''}
                     </div>
-                ` : `
-                    <p style="color: #666; text-align: center;">这个分组还没有单词</p>
-                `}
-            </div>
+                    ${totalWords > 10 ? `
+                        <div style="text-align: center; margin-top: 15px;">
+                            <span style="color: #666;">还有 ${totalWords - 10} 个单词未显示</span>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : `
+                <div style="margin-bottom: 30px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 3em; margin-bottom: 10px; color: #ddd;">📚</div>
+                    <p style="color: #666;">这个分组还没有单词</p>
+                    <p style="color: #999; font-size: 14px; margin-top: 5px;">上传单词后，学生会自动同步</p>
+                </div>
+            `}
             
-            <div style="text-align: center;">
-                <button class="btn" onclick="uploadWordsToGroup('${groupId}')">
-                    📤 上传单词到这个分组
+            <div style="text-align: center; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                <button class="btn btn-blue" onclick="uploadWordsToGroupFixed('${groupId}')" style="padding: 12px 30px; font-size: 16px; margin-right: 10px;">
+                    📤 上传单词
+                </button>
+                <button class="btn" onclick="manageGroupWords('${groupId}')" style="padding: 12px 30px; font-size: 16px;">
+                    📖 管理单词
                 </button>
             </div>
         `;
         
     } catch (error) {
         console.error('加载分组详情错误:', error);
-        document.getElementById('group-detail').innerHTML = 
-            '<p style="color: red; text-align: center;">加载失败</p>';
+        document.getElementById('group-detail').innerHTML = `
+            <div class="message-box message-error">
+                <h4 style="margin-bottom: 10px;">❌ 加载失败</h4>
+                <p style="margin-bottom: 15px;">${error.message}</p>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="btn" onclick="loadGroupListFixed()" style="margin-right: 10px;">
+                        返回列表
+                    </button>
+                    <button class="btn" onclick="showGroupDetailFixed('${groupId}')">
+                        重试加载
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
-async function addStudentToGroup(groupId, studentId) {
+// 刷新分组详情
+function refreshGroupDetail(groupId) {
+    showGroupDetailFixed(groupId);
+}
+
+// 添加学生到分组
+async function addStudentToGroupFixed(groupId, studentId) {
     try {
+        showAlert(`正在添加 ${studentId} 到分组...`, 'info');
+        
         const { error } = await dbClient
             .from('group_students')
             .insert([{
                 group_id: groupId,
-                student_id: studentId
-            }]);
+                student_id: studentId,
+                created_at: new Date().toISOString()
+            }], { onConflict: 'group_id,student_id' });
         
         if (error) {
-            // 如果学生已经在分组中，忽略错误
             if (error.code === '23505') {
                 showAlert(`${studentId} 已经在分组中`, 'info');
-                return;
+            } else {
+                throw error;
             }
-            throw error;
+        } else {
+            showAlert(`✅ ${studentId} 已成功添加到分组`, 'success');
         }
         
-        showAlert(`已添加 ${studentId} 到分组`, 'success');
-        
-        // 立即为学生同步分组单词
-        await syncGroupWordsToStudent(studentId);
-        
-        showGroupDetail(groupId);
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
     } catch (error) {
         console.error('添加学生错误:', error);
-        showAlert('添加失败', 'error');
+        showAlert(`添加失败: ${error.message}`, 'error');
     }
 }
 
-async function removeStudentFromGroup(groupId, studentId) {
+// 移除学生从分组
+async function removeStudentFromGroupFixed(groupId, studentId) {
+    if (!confirm(`确定要从分组中移除 ${studentId} 吗？`)) {
+        return;
+    }
+    
     try {
+        showAlert(`正在移除 ${studentId}...`, 'info');
+        
         const { error } = await dbClient
             .from('group_students')
             .delete()
@@ -3308,16 +3621,74 @@ async function removeStudentFromGroup(groupId, studentId) {
         
         if (error) throw error;
         
-        showAlert(`已从分组中移除 ${studentId}`, 'success');
-        showGroupDetail(groupId);
+        showAlert(`✅ ${studentId} 已从分组中移除`, 'success');
+        
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
     } catch (error) {
         console.error('移除学生错误:', error);
-        showAlert('移除失败', 'error');
+        showAlert(`移除失败: ${error.message}`, 'error');
     }
 }
 
-async function addAllStudentsToGroup(groupId) {
+// 删除分组
+async function deleteGroupFixed(groupId, groupName) {
+    if (!confirm(`确定要删除分组 "${groupName}" 吗？\n\n⚠️ 删除后：\n• 分组信息将被永久删除\n• 分组与学生的关联将被移除\n• 分组内的单词将保留（但不再属于任何分组）`)) {
+        return;
+    }
+    
+    try {
+        showAlert(`正在删除分组 "${groupName}"...`, 'warning');
+        
+        // 1. 先删除分组学生关联
+        await dbClient
+            .from('group_students')
+            .delete()
+            .eq('group_id', groupId);
+        
+        // 2. 删除分组本身
+        const { error } = await dbClient
+            .from('groups')
+            .delete()
+            .eq('id', groupId);
+        
+        if (error) throw error;
+        
+        showAlert(`✅ 分组 "${groupName}" 已成功删除`, 'success');
+        
+        // 3. 重新加载分组列表
+        loadGroupListFixed();
+        
+        // 4. 清空分组详情区域
+        document.getElementById('group-detail').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 3em; margin-bottom: 10px;">📁</div>
+                <p style="color: #666;">选择一个分组查看详情</p>
+                <p style="color: #999; font-size: 14px; margin-top: 10px;">分组已删除，请选择其他分组</p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('删除分组错误:', error);
+        showAlert(`删除失败: ${error.message}`, 'error');
+    }
+}
+
+// 上传单词到分组
+function uploadWordsToGroupFixed(groupId) {
+    appState.selectedGroupId = groupId;
+    showUploadWordsPage();
+}
+
+// 管理分组单词
+function manageGroupWords(groupId) {
+    appState.selectedGroupId = groupId;
+    showWordManagementPage();
+}
+
+// 添加所有学生到分组
+async function addAllStudentsToGroupFixed(groupId) {
     try {
         // 获取所有学生
         const { data: allStudents, error: studentsError } = await dbClient
@@ -3332,13 +3703,20 @@ async function addAllStudentsToGroup(groupId) {
             return;
         }
         
+        if (!confirm(`确定要将所有 ${allStudents.length} 名学生添加到这个分组吗？`)) {
+            return;
+        }
+        
+        showAlert(`正在添加 ${allStudents.length} 名学生到分组...`, 'info');
+        
         // 准备批量插入数据
         const studentsToAdd = allStudents.map(student => ({
             group_id: groupId,
-            student_id: student.username
+            student_id: student.username,
+            created_at: new Date().toISOString()
         }));
         
-        // 批量插入
+        // 批量插入（使用onConflict忽略重复）
         const { error } = await dbClient
             .from('group_students')
             .insert(studentsToAdd, { onConflict: 'group_id,student_id' });
@@ -3350,45 +3728,18 @@ async function addAllStudentsToGroup(groupId) {
             }
         }
         
-        showAlert(`已添加所有 ${allStudents.length} 名学生到分组`, 'success');
+        showAlert(`✅ 已成功添加所有 ${allStudents.length} 名学生到分组`, 'success');
         
-        // 为所有学生同步单词
-        for (const student of allStudents) {
-            await syncGroupWordsToStudent(student.username);
-        }
-        
-        showGroupDetail(groupId);
+        // 刷新分组详情
+        showGroupDetailFixed(groupId);
         
     } catch (error) {
         console.error('添加所有学生错误:', error);
-        showAlert('添加失败', 'error');
+        showAlert(`添加失败: ${error.message}`, 'error');
     }
 }
 
-async function deleteGroup(groupId, groupName) {
-    if (!confirm(`确定要删除分组 "${groupName}" 吗？分组内的单词不会被删除，但会移出分组。`)) {
-        return;
-    }
-    
-    try {
-        // 删除分组（级联删除group_students记录）
-        const { error } = await dbClient
-            .from('groups')
-            .delete()
-            .eq('id', groupId);
-        
-        if (error) throw error;
-        
-        showAlert(`分组 "${groupName}" 已删除`, 'success');
-        loadGroupList();
-        document.getElementById('group-detail').innerHTML = 
-            '<p style="text-align: center; color: #666;">选择一个分组查看详情</p>';
-        
-    } catch (error) {
-        console.error('删除分组错误:', error);
-        showAlert('删除失败', 'error');
-    }
-}
+
 
 function uploadWordsToGroup(groupId) {
     appState.selectedGroupId = groupId;
