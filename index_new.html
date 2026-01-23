@@ -777,27 +777,26 @@
                     </div>
                 </div>
             </div>
-<!-- 新增：单词分类查看页面 -->
-<div id="word-categories-screen" class="screen">
-    <div class="fixed-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin: 0; color: #333;">📚 单词列表</h2>
-            <button class="btn" onclick="showStudentDashboard()" style="padding: 8px 16px;">
-                <span>🔙 返回</span>
-            </button>
-        </div>
-    </div>
-    
-    <div class="content-padding">
-        <div style="max-width: 1200px; margin: 0 auto;">
-            <div id="category-words-content">
-                <!-- 这里会动态显示单词列表 -->
-            </div>
-        </div>
-    </div>
-</div>
-            
 
+            <!-- 新增：单词分类查看页面 -->
+            <div id="word-categories-screen" class="screen">
+                <div class="fixed-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: #333;">📚 单词列表</h2>
+                        <button class="btn" onclick="showStudentDashboard()" style="padding: 8px 16px;">
+                            <span>🔙 返回</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="content-padding">
+                    <div style="max-width: 1200px; margin: 0 auto;">
+                        <div id="category-words-content">
+                            <!-- 这里会动态显示单词列表 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- 新增：复习计划页面 -->
             <div id="review-plan-screen" class="screen">
@@ -987,7 +986,7 @@ function showAlert(message, type = 'info', duration = 3000) {
     alertBox.style.animation = 'slideDown 0.3s ease-out';
     alertBox.textContent = message;
 
-   // 添加关闭按钮
+    // 添加关闭按钮
     const closeBtn = document.createElement('span');
     closeBtn.innerHTML = '&times;';
     closeBtn.style.cssText = `
@@ -2107,7 +2106,7 @@ async function testDatabase() {
         // 使用更快的查询方式
         const { error } = await dbClient
             .from('users')
-            .select('*', { count: 'exact', head: true })
+            .select('*')
             .limit(1);
         
         if (error) {
@@ -2430,16 +2429,15 @@ async function showTeacherDashboard() {
     await loadTeacherDashboard();
 }
 
-
 async function loadTeacherDashboard() {
     try {
-        // 修改：使用正确的count查询语法
+        // 修复：使用正确的计数方法
         let wordsCount = 0;
         let studentsCount = 0;
         let masteredCount = 0;
         
         try {
-            // 方法1：使用.count()方法
+            // 获取单词总数
             const { data: wordsData, error: wordsError } = await dbClient
                 .from('words')
                 .select('*')
@@ -2448,20 +2446,14 @@ async function loadTeacherDashboard() {
             if (!wordsError) wordsCount = wordsData?.length || 0;
             
         } catch (e) {
-            // 方法2：如果上面的方法失败，尝试另一种方式
-            console.log('尝试方法2获取单词总数');
-            const { data: wordsData } = await dbClient
-                .from('words')
-                .select('id')
-                .eq('teacher_id', appState.teacherId);
-            wordsCount = wordsData?.length || 0;
+            console.log('获取单词总数错误:', e);
         }
         
         try {
             // 获取学生总数
             const { data: studentsData, error: studentsError } = await dbClient
                 .from('users')
-                .select('id')
+                .select('*')
                 .eq('is_teacher', false);
             
             if (!studentsError) studentsCount = studentsData?.length || 0;
@@ -2474,7 +2466,7 @@ async function loadTeacherDashboard() {
             // 获取已掌握单词数
             const { data: masteredData, error: masteredError } = await dbClient
                 .from('study_records')
-                .select('id')
+                .select('*')
                 .eq('status', 'mastered');
             
             if (!masteredError) masteredCount = masteredData?.length || 0;
@@ -2829,8 +2821,7 @@ async function submitUploadWordsStable() {
             .from('words')
             .select('english')
             .eq('teacher_id', appState.teacherId)
-            .eq('group_id', selectedGroupId); 
-
+            .eq('group_id', selectedGroupId);
         
         if (fetchError) throw fetchError;
         
@@ -3195,23 +3186,23 @@ async function loadGroupListFixed() {
         // 2. 使用 Promise.all 并行获取所有分组的统计数据
         const groupsWithStats = await Promise.all(groups.map(async (group) => {
             try {
-                // 获取分组单词数 - 使用正确的计数方法
-                const { count: wordCount, error: wordsError } = await dbClient
+                // 获取分组单词数
+                const { data: wordData, error: wordsError } = await dbClient
                     .from('words')
-                    .select('*', { count: 'exact', head: true })
+                    .select('*')
                     .eq('group_id', group.id)
                     .eq('teacher_id', appState.teacherId);
                 
-                // 获取分组学生数 - 使用正确的计数方法
-                const { count: studentCount, error: studentsError } = await dbClient
+                // 获取分组学生数
+                const { data: studentData, error: studentsError } = await dbClient
                     .from('group_students')
-                    .select('*', { count: 'exact', head: true })
+                    .select('*')
                     .eq('group_id', group.id);
                 
                 return {
                     ...group,
-                    wordCount: wordCount || 0,
-                    studentCount: studentCount || 0
+                    wordCount: wordData?.length || 0,
+                    studentCount: studentData?.length || 0
                 };
             } catch (error) {
                 console.error(`获取分组 ${group.id} 统计数据错误:`, error);
@@ -3441,7 +3432,7 @@ async function showGroupDetailFixed(groupId) {
                     .order('created_at', { ascending: false })
                     .limit(10),
                 dbClient.from('words')
-                    .select('*', { count: 'exact', head: true })
+                    .select('*')
                     .eq('group_id', groupId)
                     .eq('teacher_id', appState.teacherId)
             ]),
@@ -3466,7 +3457,7 @@ async function showGroupDetailFixed(groupId) {
         
         // 处理单词数据
         const groupWords = wordsResult[0].data || [];
-        const totalWords = wordsResult[1].count || 0;
+        const totalWords = wordsResult[1].length || 0;
         
         // 处理学生数据
         const allStudents = studentsResult.data || [];
@@ -3736,9 +3727,8 @@ async function syncWordsToStudentAfterJoiningGroup(studentId, groupId) {
 }
 
 // 移除学生从分组
-// 移除学生从分组
 async function removeStudentFromGroupFixed(groupId, studentId) {
-    if (!confirm(`确定要从分组中移除 ${studentId} 吗？\n\n⚠️ 移除后，该学生在此分组下的所有单词将被删除！\n✅ 已学习的单词会保留在个人词库中。`)) {
+    if (!confirm(`确定要从分组中移除 ${studentId} 吗？\n\n⚠️ 移除后，该学生在此分组下的未学习单词将被删除！`)) {
         return;
     }
     
@@ -3754,7 +3744,7 @@ async function removeStudentFromGroupFixed(groupId, studentId) {
         
         if (deleteError) throw deleteError;
         
-        // 2. 获取该学生在当前分组下的所有学习记录
+        // 2. 获取该学生在当前分组下的学习记录
         const { data: groupRecords, error: recordsError } = await dbClient
             .from('study_records')
             .select('*')
@@ -3763,48 +3753,50 @@ async function removeStudentFromGroupFixed(groupId, studentId) {
         
         if (recordsError) throw recordsError;
         
-        let deletedCount = 0;
-        let keptCount = 0;
-        
-        // 3. 处理学习记录
+        // 3. 只删除未学习的单词（status='new'且last_reviewed为null）
         if (groupRecords && groupRecords.length > 0) {
-            for (const record of groupRecords) {
-                // 判断是否已学习：有last_reviewed或状态不是'new'
-                const isLearned = record.last_reviewed || record.status !== 'new';
-                
-                if (isLearned) {
-                    // 已学习的单词：保留记录，但移除分组ID（设置为null）
-                    await dbClient
-                        .from('study_records')
-                        .update({ group_id: null })
-                        .eq('id', record.id);
-                    keptCount++;
-                    console.log(`保留已学习单词: ${record.english}`);
-                } else {
-                    // 未学习的单词：直接删除
+            const unlearnedRecords = groupRecords.filter(record => 
+                record.status === 'new' && !record.last_reviewed
+            );
+            
+            if (unlearnedRecords.length > 0) {
+                for (const record of unlearnedRecords) {
                     await dbClient
                         .from('study_records')
                         .delete()
                         .eq('id', record.id);
-                    deletedCount++;
-                    console.log(`删除未学习单词: ${record.english}`);
                 }
+                console.log(`删除了 ${unlearnedRecords.length} 个未学习单词`);
+            }
+            
+            // 对于已经学习过的单词，保留记录但移除分组ID（设置为null）
+            const learnedRecords = groupRecords.filter(record => 
+                record.status !== 'new' || record.last_reviewed
+            );
+            
+            if (learnedRecords.length > 0) {
+                const learnedIds = learnedRecords.map(r => r.id);
+                await dbClient
+                    .from('study_records')
+                    .update({ group_id: null })
+                    .in('id', learnedIds);
+                console.log(`移除了 ${learnedRecords.length} 个已学习单词的分组关联`);
             }
         }
         
-        showAlert(`✅ ${studentId} 已从分组中移除\n🗑️ 删除了 ${deletedCount} 个未学习单词\n💾 保留了 ${keptCount} 个已学习单词`, 'success');
+        showAlert(`✅ ${studentId} 已从分组中移除\n📚 未学习单词已删除\n✅ 已学习单词保留在原分组`, 'success');
         
         // 刷新分组列表统计
-        setTimeout(() => loadGroupListFixed(), 500);
+        loadGroupListFixed();
         
         // 刷新分组详情
-        setTimeout(() => showGroupDetailFixed(groupId), 800);
+        showGroupDetailFixed(groupId);
         
         // 如果该学生当前在线，刷新其主页
         if (appState.currentUser === studentId) {
             setTimeout(() => {
                 loadStudentDashboardSimple();
-                showAlert(`您已被从分组中移除\n🗑️ ${deletedCount} 个未学习单词已删除\n💾 ${keptCount} 个已学习单词保留在个人词库`, 'info');
+                showAlert('您的分组已更新，未学习单词已移除', 'info');
             }, 1000);
         }
         
@@ -4391,14 +4383,102 @@ async function loadWordManagementPage() {
     setTimeout(() => loadWordManagementList('all', 'created_desc', ''), 200);
 }
 
-async function loadWordManagementList() {
+async function loadGroupFilterOptions() {
     try {
-        const { data: words, error } = await dbClient
+        const { data: groups, error } = await dbClient
+            .from('groups')
+            .select('id, name')
+            .eq('teacher_id', appState.teacherId)
+            .order('name');
+        
+        if (error) throw error;
+        
+        const groupFilter = document.getElementById('group-filter');
+        if (groupFilter && groups) {
+            // 清空现有选项（除了"所有分组"）
+            while (groupFilter.options.length > 1) {
+                groupFilter.remove(1);
+            }
+            
+            groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                option.textContent = group.name;
+                groupFilter.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('加载分组筛选选项错误:', error);
+    }
+}
+
+// 应用筛选
+function applyWordFilter() {
+    const groupFilter = document.getElementById('group-filter');
+    const sortOrder = document.getElementById('sort-order');
+    const searchInput = document.getElementById('word-search');
+    
+    const selectedGroup = groupFilter ? groupFilter.value : 'all';
+    const selectedSort = sortOrder ? sortOrder.value : 'created_desc';
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    
+    loadWordManagementList(selectedGroup, selectedSort, searchTerm);
+}
+
+// 修改后的单词列表加载函数
+async function loadWordManagementList(groupId = 'all', sortOrder = 'created_desc', searchTerm = '') {
+    try {
+        // 构建查询
+        let query = dbClient
             .from('words')
             .select('*')
             .eq('teacher_id', appState.teacherId);
-            .order('created_at', { ascending: false });
-
+        
+        // 分组筛选
+        if (groupId && groupId !== 'all') {
+            query = query.eq('group_id', groupId);
+        }
+        
+        // 搜索筛选
+        if (searchTerm) {
+            // 搜索英文或中文
+            query = query.or(`english.ilike.%${searchTerm}%,chinese.ilike.%${searchTerm}%`);
+        }
+        
+        // 应用排序
+        let sortField = 'created_at';
+        let sortDirection = { ascending: false };
+        
+        switch(sortOrder) {
+            case 'created_desc':
+                sortField = 'created_at';
+                sortDirection = { ascending: false };
+                break;
+            case 'created_asc':
+                sortField = 'created_at';
+                sortDirection = { ascending: true };
+                break;
+            case 'english_asc':
+                sortField = 'english';
+                sortDirection = { ascending: true };
+                break;
+            case 'english_desc':
+                sortField = 'english';
+                sortDirection = { ascending: false };
+                break;
+            case 'chinese_asc':
+                sortField = 'chinese';
+                sortDirection = { ascending: true };
+                break;
+            case 'chinese_desc':
+                sortField = 'chinese';
+                sortDirection = { ascending: false };
+                break;
+        }
+        
+        query = query.order(sortField, sortDirection);
+        
+        const { data: words, error } = await query;
         
         if (error) throw error;
         
@@ -4408,13 +4488,14 @@ async function loadWordManagementList() {
             content.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3em; margin-bottom: 20px;">📚</div>
-                    <h3 style="color: #666; margin-bottom: 15px;">还没有单词</h3>
-                    <p style="color: #999;">请先上传单词</p>
+                    <h3 style="color: #666; margin-bottom: 15px;">没有找到单词</h3>
+                    <p style="color: #999;">${searchTerm ? '没有匹配的单词' : '请先上传单词'}</p>
                 </div>
             `;
             return;
         }
         
+        // 获取分组信息用于显示分组名称
         const { data: groups } = await dbClient
             .from('groups')
             .select('id, name')
@@ -4427,10 +4508,41 @@ async function loadWordManagementList() {
             });
         }
         
-        let html = `
-            <div style="margin-bottom: 20px;">
-                <p>共 ${words.length} 个单词</p>
+        // 检查是否有重复单词（当前分组内）
+        const duplicateInfo = {};
+        if (groupId && groupId !== 'all') {
+            const englishSet = new Set();
+            words.forEach(word => {
+                const englishLower = word.english.toLowerCase();
+                if (englishSet.has(englishLower)) {
+                    if (!duplicateInfo[englishLower]) {
+                        duplicateInfo[englishLower] = 1;
+                    }
+                    duplicateInfo[englishLower]++;
+                } else {
+                    englishSet.add(englishLower);
+                }
+            });
+        }
+        
+        // 统计信息
+        const statsHtml = `
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-weight: bold; color: #333;">共 ${words.length} 个单词</span>
+                        ${groupId && groupId !== 'all' && Object.keys(duplicateInfo).length > 0 ? 
+                            `<span style="color: #F44336; margin-left: 15px;">⚠️ 本组有 ${Object.keys(duplicateInfo).length} 个重复单词</span>` : ''}
+                    </div>
+                    <div style="color: #666; font-size: 14px;">
+                        ${groupId === 'all' ? '所有分组' : `当前分组: ${groupMap[groupId] || '未知'}`} | 
+                        排序: ${getSortOrderText(sortOrder)}
+                    </div>
+                </div>
             </div>
+        `;
+        
+        let html = statsHtml + `
             <div style="overflow-x: auto;">
                 <table class="data-table">
                     <thead>
@@ -4442,6 +4554,7 @@ async function loadWordManagementList() {
                             <th>中文</th>
                             <th>分组</th>
                             <th>上传时间</th>
+                            <th>状态</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -4449,9 +4562,14 @@ async function loadWordManagementList() {
         `;
         
         words.forEach(word => {
-            const uploadTime = new Date(word.created_at).toLocaleDateString('zh-CN');
+            const uploadTime = new Date(word.created_at).toLocaleDateString('zh-CN') + ' ' + 
+                              new Date(word.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
             const groupName = word.group_id ? (groupMap[word.group_id] || '未知分组') : '未分组';
             const isSelected = appState.selectedWords.includes(word.id);
+            
+            // 检查是否重复
+            const englishLower = word.english.toLowerCase();
+            const isDuplicate = duplicateInfo[englishLower] > 1;
             
             html += `
                 <tr id="word-row-${word.id}" ${isSelected ? 'style="background-color: #e8f5e9;"' : ''}>
@@ -4460,10 +4578,22 @@ async function loadWordManagementList() {
                                onchange="toggleWordSelection('${word.id}', this.checked)"
                                ${isSelected ? 'checked' : ''}>
                     </td>
-                    <td><strong>${word.english}</strong></td>
+                    <td>
+                        <strong>${word.english}</strong>
+                        ${isDuplicate ? '<span style="color: #F44336; margin-left: 5px; font-size: 12px;">(重复)</span>' : ''}
+                    </td>
                     <td>${word.chinese}</td>
-                    <td>${groupName}</td>
+                    <td>
+                        <div style="display: inline-block; padding: 4px 8px; background: #E3F2FD; border-radius: 4px; font-size: 12px;">
+                            ${groupName}
+                        </div>
+                    </td>
                     <td>${uploadTime}</td>
+                    <td>
+                        ${isDuplicate ? 
+                            '<span style="color: #F44336; font-weight: bold;">⚠️ 重复</span>' : 
+                            '<span style="color: #4CAF50; font-weight: bold;">✓ 正常</span>'}
+                    </td>
                     <td>
                         <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
                                 onclick="editWord('${word.id}', '${word.english}', '${word.chinese}')">编辑</button>
@@ -4480,6 +4610,25 @@ async function loadWordManagementList() {
             </div>
         `;
         
+        // 添加重复单词提示
+        if (Object.keys(duplicateInfo).length > 0) {
+            html += `
+                <div style="background: #FFF3CD; border: 2px solid #FFC107; border-radius: 10px; padding: 15px; margin-top: 20px;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">⚠️ 重复单词提示</h4>
+                    <p style="color: #856404; margin-bottom: 10px;">
+                        本分组内发现重复单词。虽然组间可以重复，但同一分组内的重复单词可能会影响学习效果。
+                    </p>
+                    <div style="color: #856404;">
+                        <strong>重复单词：</strong>
+                        ${Object.keys(duplicateInfo).map(word => `${word} (${duplicateInfo[word]}次)`).join(', ')}
+                    </div>
+                    <button class="btn" onclick="removeDuplicateWords('${groupId}')" style="margin-top: 10px; padding: 8px 16px; background: #FF9800; color: white;">
+                        🗑️ 清理重复单词
+                    </button>
+                </div>
+            `;
+        }
+        
         content.innerHTML = html;
         updateSelectionCount();
         
@@ -4492,6 +4641,19 @@ async function loadWordManagementList() {
         console.error('加载单词库错误:', error);
         document.getElementById('word-management-content').innerHTML = 
             '<p style="color: red; text-align: center;">加载失败</p>';
+    }
+}
+
+// 获取排序方式文本
+function getSortOrderText(sortOrder) {
+    switch(sortOrder) {
+        case 'created_desc': return '上传时间（新→旧）';
+        case 'created_asc': return '上传时间（旧→新）';
+        case 'english_asc': return 'A-Z（英文）';
+        case 'english_desc': return 'Z-A（英文）';
+        case 'chinese_asc': return 'A-Z（中文）';
+        case 'chinese_desc': return 'Z-A（中文）';
+        default: return '默认排序';
     }
 }
 
@@ -4846,6 +5008,92 @@ async function deleteWord(wordId, englishWord) {
     }
 }
 
+// 清理重复单词
+async function removeDuplicateWords(groupId) {
+    if (!confirm('确定要清理重复单词吗？\n\n⚠️ 这将删除同一分组内的重复单词，只保留最早上传的那个。')) {
+        return;
+    }
+    
+    try {
+        showAlert('正在清理重复单词...', 'info');
+        
+        // 获取该分组的所有单词
+        const { data: words, error } = await dbClient
+            .from('words')
+            .select('*')
+            .eq('teacher_id', appState.teacherId)
+            .eq('group_id', groupId)
+            .order('created_at', { ascending: true }); // 按时间排序，最早的在前
+        
+        if (error) throw error;
+        
+        if (!words || words.length === 0) {
+            showAlert('没有找到单词', 'info');
+            return;
+        }
+        
+        const seenWords = new Set();
+        const duplicatesToDelete = [];
+        
+        // 找出重复的单词（保留最早的）
+        words.forEach(word => {
+            const englishLower = word.english.toLowerCase();
+            if (seenWords.has(englishLower)) {
+                // 这是重复的，标记为删除
+                duplicatesToDelete.push(word.id);
+            } else {
+                seenWords.add(englishLower);
+            }
+        });
+        
+        if (duplicatesToDelete.length === 0) {
+            showAlert('没有发现重复单词', 'info');
+            return;
+        }
+        
+        // 批量删除重复单词
+        const batchSize = 50;
+        let deletedCount = 0;
+        
+        for (let i = 0; i < duplicatesToDelete.length; i += batchSize) {
+            const batch = duplicatesToDelete.slice(i, i + batchSize);
+            const { error: deleteError } = await dbClient
+                .from('words')
+                .delete()
+                .in('id', batch);
+            
+            if (deleteError) {
+                console.error('批量删除错误:', deleteError);
+                // 尝试逐个删除
+                for (const wordId of batch) {
+                    try {
+                        await dbClient
+                            .from('words')
+                            .delete()
+                            .eq('id', wordId);
+                        deletedCount++;
+                    } catch (err) {
+                        console.error('删除单个单词失败:', err);
+                    }
+                }
+            } else {
+                deletedCount += batch.length;
+            }
+        }
+        
+        showAlert(`✅ 成功清理 ${deletedCount} 个重复单词`, 'success');
+        
+        // 重新加载单词列表
+        const groupFilter = document.getElementById('group-filter');
+        const selectedGroup = groupFilter ? groupFilter.value : 'all';
+        loadWordManagementList(selectedGroup);
+        
+    } catch (error) {
+        console.error('清理重复单词错误:', error);
+        showAlert(`清理失败: ${error.message}`, 'error');
+    }
+}
+
 function showShareSystemPage() {
     showScreen('teacher-share-screen');
     loadShareSystemPage();
@@ -5024,7 +5272,7 @@ async function loadStudentDashboardSimple() {
         await syncGroupWordsToStudent(appState.currentUser);
         
         // 获取学习记录 - 添加排序
-        cconst { data: records, error } = await dbClient
+        const { data: records, error } = await dbClient
             .from('study_records')
             .select('*')
             .eq('student_id', appState.currentUser)
@@ -5045,43 +5293,40 @@ async function loadStudentDashboardSimple() {
         
         // 使用数组长度而不是count
         const total = appState.userWords.length;
-
         
-        appState.userWords = records || [];
-        
-// 今日学习情况
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-const todayRecords = records?.filter(r => 
-    r.last_reviewed && new Date(r.last_reviewed) >= today
-) || [];
+        // 今日学习情况
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayRecords = records?.filter(r => 
+            r.last_reviewed && new Date(r.last_reviewed) >= today
+        ) || [];
 
-const target = 10; // 每日目标单词数
-const todayProgress = Math.min(todayRecords.length, target);
-const progressPercent = (todayProgress / target) * 100;
+        const target = 10; // 每日目标单词数
+        const todayProgress = Math.min(todayRecords.length, target);
+        const progressPercent = (todayProgress / target) * 100;
 
-const todayStatus = document.getElementById('today-status');
-todayStatus.innerHTML = `
-    <div class="stats-card">
-        <h3 style="color: #333; margin-bottom: 15px;">📅 今日学习情况</h3>
-        <div class="card-grid">
-            <div class="stat-card" onclick="showTodayWords()" style="cursor: pointer;">
-                <div class="number" style="color: #2196F3; text-decoration: underline;">${todayRecords.length}</div>
-                <div class="label">今日已学</div>
-                <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="number">${Math.max(0, target - todayRecords.length)}</div>
-                <div class="label">建议学习</div>
-            </div>
-            
-            <div class="stat-card" onclick="showTodayMasteredWords()" style="cursor: pointer;">
-                <div class="number" style="color: #4CAF50; text-decoration: underline;">${todayRecords.filter(r => r.status === 'mastered').length}</div>
-                <div class="label">今日掌握</div>
-                <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-            </div>
-        </div>
+        const todayStatus = document.getElementById('today-status');
+        todayStatus.innerHTML = `
+            <div class="stats-card">
+                <h3 style="color: #333; margin-bottom: 15px;">📅 今日学习情况</h3>
+                <div class="card-grid">
+                    <div class="stat-card" onclick="showTodayWords()" style="cursor: pointer;">
+                        <div class="number" style="color: #2196F3; text-decoration: underline;">${todayRecords.length}</div>
+                        <div class="label">今日已学</div>
+                        <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="number">${Math.max(0, target - todayRecords.length)}</div>
+                        <div class="label">建议学习</div>
+                    </div>
+                    
+                    <div class="stat-card" onclick="showTodayMasteredWords()" style="cursor: pointer;">
+                        <div class="number" style="color: #4CAF50; text-decoration: underline;">${todayRecords.filter(r => r.status === 'mastered').length}</div>
+                        <div class="label">今日掌握</div>
+                        <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                    </div>
+                </div>
 
                 <div style="margin-top: 20px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -5098,53 +5343,51 @@ todayStatus.innerHTML = `
             </div>
         `;
         
-// 学习进度
-const total = records?.length || 0;
+        // 学习进度
+        const mastered = records?.filter(r => r.status === 'mastered').length || 0;
+        const learning = records?.filter(r => r.status === 'learning').length || 0;
+        const review = records?.filter(r => r.status === 'new').length || 0;
+        const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
 
-const mastered = records?.filter(r => r.status === 'mastered').length || 0;
-const learning = records?.filter(r => r.status === 'learning').length || 0;
-const review = records?.filter(r => r.status === 'new').length || 0;
-const progress = total > 0 ? Math.round((mastered / total) * 100) : 0;
+        // 计算未学习单词
+        const unlearnedWords = records?.filter(r => 
+            r.status === 'new' && !r.last_reviewed
+        ) || [];
+        const unlearned = unlearnedWords.length;
 
-// 计算未学习单词
-const unlearnedWords = records?.filter(r => 
-    r.status === 'new' && !r.last_reviewed
-) || [];
-const unlearned = unlearnedWords.length;
-
-const progressSummary = document.getElementById('my-progress-summary');
-progressSummary.innerHTML = `
-    <h3 style="color: #2196F3; margin-bottom: 20px;">📊 我的学习进度</h3>
-    <div class="card-grid">
-        <div class="stat-card">
-            <div class="number">${total}</div>
-            <div class="label">单词总数</div>
-        </div>
-        
-        <div class="stat-card" onclick="showMasteredWords()" style="cursor: pointer;">
-            <div class="number" style="color: #4CAF50; text-decoration: underline;">${mastered}</div>
-            <div class="label">已掌握</div>
-            <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-        </div>
-        
-        <div class="stat-card" onclick="showLearningWords()" style="cursor: pointer;">
-            <div class="number" style="color: #FF9800; text-decoration: underline;">${learning}</div>
-            <div class="label">熟悉</div>
-            <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-        </div>
-        
-        <div class="stat-card" onclick="showNewLearnedWords()" style="cursor: pointer;">
-            <div class="number" style="color: #F44336; text-decoration: underline;">${review}</div>
-            <div class="label">没印象</div>
-            <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-        </div>
-        
-        <div class="stat-card" onclick="showUnlearnedWords()" style="cursor: pointer;">
-            <div class="number" style="color: #9C27B0; text-decoration: underline;">${unlearned}</div>
-            <div class="label">未学习</div>
-            <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
-        </div>
-    </div>            </div>
+        const progressSummary = document.getElementById('my-progress-summary');
+        progressSummary.innerHTML = `
+            <h3 style="color: #2196F3; margin-bottom: 20px;">📊 我的学习进度</h3>
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="number">${total}</div>
+                    <div class="label">单词总数</div>
+                </div>
+                
+                <div class="stat-card" onclick="showMasteredWords()" style="cursor: pointer;">
+                    <div class="number" style="color: #4CAF50; text-decoration: underline;">${mastered}</div>
+                    <div class="label">已掌握</div>
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                </div>
+                
+                <div class="stat-card" onclick="showLearningWords()" style="cursor: pointer;">
+                    <div class="number" style="color: #FF9800; text-decoration: underline;">${learning}</div>
+                    <div class="label">熟悉</div>
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                </div>
+                
+                <div class="stat-card" onclick="showNewLearnedWords()" style="cursor: pointer;">
+                    <div class="number" style="color: #F44336; text-decoration: underline;">${review}</div>
+                    <div class="label">没印象</div>
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                </div>
+                
+                <div class="stat-card" onclick="showUnlearnedWords()" style="cursor: pointer;">
+                    <div class="number" style="color: #9C27B0; text-decoration: underline;">${unlearned}</div>
+                    <div class="label">未学习</div>
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">点击查看</div>
+                </div>
+            </div>
             <div style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span style="color: #666;">整体掌握进度</span>
@@ -5173,12 +5416,12 @@ progressSummary.innerHTML = `
             for (const group of groups || []) {
                 const { data: groupWords } = await dbClient
                     .from('words')
-                    .select('count')
+                    .select('*')
                     .eq('group_id', group.id);
                 
                 const { data: myGroupRecords } = await dbClient
                     .from('study_records')
-                    .select('count')
+                    .select('*')
                     .eq('student_id', appState.currentUser)
                     .eq('group_id', group.id);
                 
@@ -5186,8 +5429,8 @@ progressSummary.innerHTML = `
                     <div style="background: white; border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
                         <div style="font-weight: bold; margin-bottom: 5px;">${group.name}</div>
                         <div style="color: #666; font-size: 14px;">
-                            分组单词: ${groupWords?.[0]?.count || 0} | 
-                            我的单词: ${myGroupRecords?.[0]?.count || 0}
+                            分组单词: ${groupWords?.length || 0} | 
+                            我的单词: ${myGroupRecords?.length || 0}
                         </div>
                     </div>
                 `;
@@ -6040,27 +6283,6 @@ function loadTodayWordsPage() {
     content.innerHTML = html;
 }
 
-// ========== 退出登录 ==========
-function handleLogout() {
-    if (confirm('确定要退出登录吗？')) {
-        appState.currentUser = null;
-        appState.isTeacher = false;
-        appState.userId = null;
-        appState.userWords = [];
-        appState.trainingWords = [];
-        appState.selectedGroupId = null;
-        appState.selectedWords = [];
-        appState.dailyTrainingProgress = 0;
-        appState.lastTrainingDate = null;
-        
-        localStorage.removeItem('kathy_current_user');
-        localStorage.removeItem('kathy_user_role');
-        
-        showScreen('login-screen');
-        document.getElementById('username').value = '';
-        showMessage('login-message', '已退出登录', 'info');
-    }
-}
 // ========== 单词分类查看函数 ==========
 
 // 显示今日已学单词
@@ -6263,400 +6485,27 @@ function learnUnlearnedWords() {
     startTrainingSession();
 }
 
-// ========== 单词管理增强功能 ==========
-
-// 加载分组筛选选项
-async function loadGroupFilterOptions() {
-    try {
-        const { data: groups, error } = await dbClient
-            .from('groups')
-            .select('id, name')
-            .eq('teacher_id', appState.teacherId)
-            .order('name');
+// ========== 退出登录 ==========
+function handleLogout() {
+    if (confirm('确定要退出登录吗？')) {
+        appState.currentUser = null;
+        appState.isTeacher = false;
+        appState.userId = null;
+        appState.userWords = [];
+        appState.trainingWords = [];
+        appState.selectedGroupId = null;
+        appState.selectedWords = [];
+        appState.dailyTrainingProgress = 0;
+        appState.lastTrainingDate = null;
         
-        if (error) throw error;
+        localStorage.removeItem('kathy_current_user');
+        localStorage.removeItem('kathy_user_role');
         
-        const groupFilter = document.getElementById('group-filter');
-        if (groupFilter && groups) {
-            // 清空现有选项（除了"所有分组"）
-            while (groupFilter.options.length > 1) {
-                groupFilter.remove(1);
-            }
-            
-            groups.forEach(group => {
-                const option = document.createElement('option');
-                option.value = group.id;
-                option.textContent = group.name;
-                groupFilter.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('加载分组筛选选项错误:', error);
+        showScreen('login-screen');
+        document.getElementById('username').value = '';
+        showMessage('login-message', '已退出登录', 'info');
     }
 }
-
-// 应用筛选
-function applyWordFilter() {
-    const groupFilter = document.getElementById('group-filter');
-    const sortOrder = document.getElementById('sort-order');
-    const searchInput = document.getElementById('word-search');
-    
-    const selectedGroup = groupFilter ? groupFilter.value : 'all';
-    const selectedSort = sortOrder ? sortOrder.value : 'created_desc';
-    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
-    
-    loadWordManagementList(selectedGroup, selectedSort, searchTerm);
-}
-
-// 修改后的单词列表加载函数
-async function loadWordManagementList(groupId = 'all', sortOrder = 'created_desc', searchTerm = '') {
-    try {
-        // 构建查询
-        let query = dbClient
-            .from('words')
-            .select('*')
-            .eq('teacher_id', appState.teacherId);
-        
-        // 分组筛选
-        if (groupId && groupId !== 'all') {
-            query = query.eq('group_id', groupId);
-        }
-        
-        // 搜索筛选
-        if (searchTerm) {
-            // 搜索英文或中文
-            query = query.or(`english.ilike.%${searchTerm}%,chinese.ilike.%${searchTerm}%`);
-        }
-        
-        // 应用排序
-        let sortField = 'created_at';
-        let sortDirection = { ascending: false };
-        
-        switch(sortOrder) {
-            case 'created_desc':
-                sortField = 'created_at';
-                sortDirection = { ascending: false };
-                break;
-            case 'created_asc':
-                sortField = 'created_at';
-                sortDirection = { ascending: true };
-                break;
-            case 'english_asc':
-                sortField = 'english';
-                sortDirection = { ascending: true };
-                break;
-            case 'english_desc':
-                sortField = 'english';
-                sortDirection = { ascending: false };
-                break;
-            case 'chinese_asc':
-                sortField = 'chinese';
-                sortDirection = { ascending: true };
-                break;
-            case 'chinese_desc':
-                sortField = 'chinese';
-                sortDirection = { ascending: false };
-                break;
-        }
-        
-        query = query.order(sortField, sortDirection);
-        
-        const { data: words, error } = await query;
-        
-        if (error) throw error;
-        
-        const content = document.getElementById('word-management-content');
-        
-        if (!words || words.length === 0) {
-            content.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div style="font-size: 3em; margin-bottom: 20px;">📚</div>
-                    <h3 style="color: #666; margin-bottom: 15px;">没有找到单词</h3>
-                    <p style="color: #999;">${searchTerm ? '没有匹配的单词' : '请先上传单词'}</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // 获取分组信息用于显示分组名称
-        const { data: groups } = await dbClient
-            .from('groups')
-            .select('id, name')
-            .eq('teacher_id', appState.teacherId);
-        
-        const groupMap = {};
-        if (groups) {
-            groups.forEach(group => {
-                groupMap[group.id] = group.name;
-            });
-        }
-        
-        // 检查是否有重复单词（当前分组内）
-        const duplicateInfo = {};
-        if (groupId && groupId !== 'all') {
-            const englishSet = new Set();
-            words.forEach(word => {
-                const englishLower = word.english.toLowerCase();
-                if (englishSet.has(englishLower)) {
-                    if (!duplicateInfo[englishLower]) {
-                        duplicateInfo[englishLower] = 1;
-                    }
-                    duplicateInfo[englishLower]++;
-                } else {
-                    englishSet.add(englishLower);
-                }
-            });
-        }
-        
-        // 统计信息
-        const statsHtml = `
-            <div style="background: #f8f9fa; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <span style="font-weight: bold; color: #333;">共 ${words.length} 个单词</span>
-                        ${groupId && groupId !== 'all' && Object.keys(duplicateInfo).length > 0 ? 
-                            `<span style="color: #F44336; margin-left: 15px;">⚠️ 本组有 ${Object.keys(duplicateInfo).length} 个重复单词</span>` : ''}
-                    </div>
-                    <div style="color: #666; font-size: 14px;">
-                        ${groupId === 'all' ? '所有分组' : `当前分组: ${groupMap[groupId] || '未知'}`} | 
-                        排序: ${getSortOrderText(sortOrder)}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        let html = statsHtml + `
-            <div style="overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;">
-                                <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)">
-                            </th>
-                            <th>英文</th>
-                            <th>中文</th>
-                            <th>分组</th>
-                            <th>上传时间</th>
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        words.forEach(word => {
-            const uploadTime = new Date(word.created_at).toLocaleDateString('zh-CN') + ' ' + 
-                              new Date(word.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-            const groupName = word.group_id ? (groupMap[word.group_id] || '未知分组') : '未分组';
-            const isSelected = appState.selectedWords.includes(word.id);
-            
-            // 检查是否重复
-            const englishLower = word.english.toLowerCase();
-            const isDuplicate = duplicateInfo[englishLower] > 1;
-            
-            html += `
-                <tr id="word-row-${word.id}" ${isSelected ? 'style="background-color: #e8f5e9;"' : ''}>
-                    <td>
-                        <input type="checkbox" class="word-checkbox" value="${word.id}" 
-                               onchange="toggleWordSelection('${word.id}', this.checked)"
-                               ${isSelected ? 'checked' : ''}>
-                    </td>
-                    <td>
-                        <strong>${word.english}</strong>
-                        ${isDuplicate ? '<span style="color: #F44336; margin-left: 5px; font-size: 12px;">(重复)</span>' : ''}
-                    </td>
-                    <td>${word.chinese}</td>
-                    <td>
-                        <div style="display: inline-block; padding: 4px 8px; background: #E3F2FD; border-radius: 4px; font-size: 12px;">
-                            ${groupName}
-                        </div>
-                    </td>
-                    <td>${uploadTime}</td>
-                    <td>
-                        ${isDuplicate ? 
-                            '<span style="color: #F44336; font-weight: bold;">⚠️ 重复</span>' : 
-                            '<span style="color: #4CAF50; font-weight: bold;">✓ 正常</span>'}
-                    </td>
-                    <td>
-                        <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
-                                onclick="editWord('${word.id}', '${word.english}', '${word.chinese}')">编辑</button>
-                        <button class="btn btn-red" style="padding: 6px 12px; font-size: 14px; margin-left: 5px;" 
-                                onclick="deleteWord('${word.id}', '${word.english}')">删除</button>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
-        // 添加重复单词提示
-        if (Object.keys(duplicateInfo).length > 0) {
-            html += `
-                <div style="background: #FFF3CD; border: 2px solid #FFC107; border-radius: 10px; padding: 15px; margin-top: 20px;">
-                    <h4 style="color: #856404; margin-bottom: 10px;">⚠️ 重复单词提示</h4>
-                    <p style="color: #856404; margin-bottom: 10px;">
-                        本分组内发现重复单词。虽然组间可以重复，但同一分组内的重复单词可能会影响学习效果。
-                    </p>
-                    <div style="color: #856404;">
-                        <strong>重复单词：</strong>
-                        ${Object.keys(duplicateInfo).map(word => `${word} (${duplicateInfo[word]}次)`).join(', ')}
-                    </div>
-                    <button class="btn" onclick="removeDuplicateWords('${groupId}')" style="margin-top: 10px; padding: 8px 16px; background: #FF9800; color: white;">
-                        🗑️ 清理重复单词
-                    </button>
-                </div>
-            `;
-        }
-        
-        content.innerHTML = html;
-        updateSelectionCount();
-        
-        // 如果有分组，启用分组删除按钮
-        if (groups && groups.length > 0) {
-            document.getElementById('group-delete-btn').disabled = false;
-        }
-        
-    } catch (error) {
-        console.error('加载单词库错误:', error);
-        document.getElementById('word-management-content').innerHTML = 
-            '<p style="color: red; text-align: center;">加载失败</p>';
-    }
-}
-
-// 获取排序方式文本
-function getSortOrderText(sortOrder) {
-    switch(sortOrder) {
-        case 'created_desc': return '上传时间（新→旧）';
-        case 'created_asc': return '上传时间（旧→新）';
-        case 'english_asc': return 'A-Z（英文）';
-        case 'english_desc': return 'Z-A（英文）';
-        case 'chinese_asc': return 'A-Z（中文）';
-        case 'chinese_desc': return 'Z-A（中文）';
-        default: return '默认排序';
-    }
-}
-
-// 清理重复单词
-async function removeDuplicateWords(groupId) {
-    if (!confirm('确定要清理重复单词吗？\n\n⚠️ 这将删除同一分组内的重复单词，只保留最早上传的那个。')) {
-        return;
-    }
-    
-    try {
-        showAlert('正在清理重复单词...', 'info');
-        
-        // 获取该分组的所有单词
-        const { data: words, error } = await dbClient
-            .from('words')
-            .select('*')
-            .eq('teacher_id', appState.teacherId)
-            .eq('group_id', groupId)
-            .order('created_at', { ascending: true }); // 按时间排序，最早的在前
-        
-        if (error) throw error;
-        
-        if (!words || words.length === 0) {
-            showAlert('没有找到单词', 'info');
-            return;
-        }
-        
-        const seenWords = new Set();
-        const duplicatesToDelete = [];
-        
-        // 找出重复的单词（保留最早的）
-        words.forEach(word => {
-            const englishLower = word.english.toLowerCase();
-            if (seenWords.has(englishLower)) {
-                // 这是重复的，标记为删除
-                duplicatesToDelete.push(word.id);
-            } else {
-                seenWords.add(englishLower);
-            }
-        });
-        
-        if (duplicatesToDelete.length === 0) {
-            showAlert('没有发现重复单词', 'info');
-            return;
-        }
-        
-        // 批量删除重复单词
-        const batchSize = 50;
-        let deletedCount = 0;
-        
-        for (let i = 0; i < duplicatesToDelete.length; i += batchSize) {
-            const batch = duplicatesToDelete.slice(i, i + batchSize);
-            const { error: deleteError } = await dbClient
-                .from('words')
-                .delete()
-                .in('id', batch);
-            
-            if (deleteError) {
-                console.error('批量删除错误:', deleteError);
-                // 尝试逐个删除
-                for (const wordId of batch) {
-                    try {
-                        await dbClient
-                            .from('words')
-                            .delete()
-                            .eq('id', wordId);
-                        deletedCount++;
-                    } catch (err) {
-                        console.error('删除单个单词失败:', err);
-                    }
-                }
-            } else {
-                deletedCount += batch.length;
-            }
-        }
-        
-        showAlert(`✅ 成功清理 ${deletedCount} 个重复单词`, 'success');
-        
-        // 重新加载单词列表
-        const groupFilter = document.getElementById('group-filter');
-        const selectedGroup = groupFilter ? groupFilter.value : 'all';
-        loadWordManagementList(selectedGroup);
-        
-    } catch (error) {
-        console.error('清理重复单词错误:', error);
-        showAlert(`清理失败: ${error.message}`, 'error');
-    }
-}
-
-// 搜索功能监听
-function initWordSearch() {
-    setTimeout(() => {
-        const searchInput = document.getElementById('word-search');
-        if (searchInput) {
-            // 回车键搜索
-            searchInput.addEventListener('keyup', function(event) {
-                if (event.key === 'Enter') {
-                    applyWordFilter();
-                }
-            });
-            
-            // 输入防抖搜索
-            let searchTimeout;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    applyWordFilter();
-                }, 500);
-            });
-        }
-    }, 1000);
-}
-
-// 在loadWordManagementPage函数末尾调用initWordSearch
-// 修改loadWordManagementPage函数最后一行
-setTimeout(() => {
-    loadGroupFilterOptions();
-    initWordSearch();
-}, 100);
-
 
 // ========== 页面初始化 ==========
 window.onload = async function() {
