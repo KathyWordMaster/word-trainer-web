@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Kathy单词大师训练营</title>
+    <title>Kathy单词大师训练营</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Microsoft YaHei', Arial, sans-serif; }
@@ -264,7 +264,7 @@
             <!-- 登录界面 -->
             <div id="login-screen" class="screen active">
                 <div style="text-align: center;">
-                    <h2>👑 Welcome to Kathy's单词训练基地！</h2>
+                    <h2>👑 欢迎使用单词训练系统</h2>
                     <p style="color: #666; margin-bottom: 30px;">🧡Kathy陪你一起和单词玩游戏🧡</p>
                     
                     <div style="margin: 30px 0;">
@@ -275,7 +275,7 @@
                         
                         <div style="margin: 25px 0;">
                             <button class="btn" onclick="handleLogin()">🔑 登录/注册</button>
-                            <button class="btn btn-blue" onclick="testDatabase()">🔧 连接抢修</button>
+                            <button class="btn btn-blue" onclick="testDatabase()">🔧 测试连接</button>
                         </div>
                     </div>
                     
@@ -1342,22 +1342,22 @@ async function selectSmartWords(newWordCount, reviewWordCount) {
         if (reviewWordCount > 0) {
             let reviewCandidates = [];
             
-            // 如果单词总数超过100，限制学习中单词数量
+            // 如果单词总数超过100，限制熟悉单词数量
             const maxLearningReview = allWords.length > 100 ? 8 : 20;
             
             // 根据艾宾浩斯记忆曲线选择
             if (clockInSystem.isReviewDay) {
                 // 复习日：按权重选择
-                // 需学习（45%）、学习中（40%）、已掌握（15%）
+                // 没印象（45%）、熟悉（40%）、已掌握（15%）
                 const needReview = Math.floor(reviewWordCount * 0.45);
                 const learningReview = Math.floor(reviewWordCount * 0.40);
                 const masteredReview = reviewWordCount - needReview - learningReview;
                 
-                // 需学习单词
+                // 没印象单词
                 const shuffledNeed = [...newWords].sort(() => Math.random() - 0.5);
                 reviewCandidates = reviewCandidates.concat(shuffledNeed.slice(0, needReview));
                 
-                // 学习中单词
+                // 熟悉单词
                 const shuffledLearning = [...learningWords].sort(() => Math.random() - 0.5);
                 reviewCandidates = reviewCandidates.concat(shuffledLearning.slice(0, Math.min(learningReview, maxLearningReview)));
                 
@@ -1389,7 +1389,7 @@ async function selectSmartWords(newWordCount, reviewWordCount) {
                     return aDate - bDate;
                 });
                 
-                // 限制学习中单词数量
+                // 限制熟悉单词数量
                 const learningSelected = allForReview.filter(w => w.status === 'learning').slice(0, maxLearningReview);
                 const others = allForReview.filter(w => w.status !== 'learning');
                 const combined = [...learningSelected, ...others];
@@ -3864,7 +3864,7 @@ async function loadAllStudentsPage() {
                             <th>最后登录</th>
                             <th>单词总数</th>
                             <th>已掌握</th>
-                            <th>学习中</th>
+                            <th>熟悉</th>
                             <th>需复习</th>
                             <th>操作</th>
                         </tr>
@@ -3961,8 +3961,8 @@ async function viewStudentDetail(studentId) {
                 let statusText, statusColor;
                 switch(record.status) {
                     case 'mastered': statusText = '✅ 已掌握'; statusColor = '#4CAF50'; break;
-                    case 'learning': statusText = '🔄 学习中'; statusColor = '#FF9800'; break;
-                    default: statusText = '📝 需学习'; statusColor = '#666';
+                    case 'learning': statusText = '🔄 熟悉'; statusColor = '#FF9800'; break;
+                    default: statusText = '📝 没印象'; statusColor = '#666';
                 }
                 
                 const lastReview = record.last_reviewed ? 
@@ -4001,7 +4001,7 @@ async function viewStudentDetail(studentId) {
                         </div>
                         <div class="stat-card">
                             <div class="number">${learning}</div>
-                            <div class="label">学习中</div>
+                            <div class="label">熟悉</div>
                         </div>
                         <div class="stat-card">
                             <div class="number">${review}</div>
@@ -4935,11 +4935,11 @@ async function loadStudentDashboardSimple() {
                 </div>
                 <div class="stat-card">
                     <div class="number">${learning}</div>
-                    <div class="label">学习中</div>
+                    <div class="label">熟悉</div>
                 </div>
                 <div class="stat-card">
                     <div class="number">${review}</div>
-                    <div class="label">需学习</div>
+                    <div class="label">没印象</div>
                 </div>
             </div>
             <div style="margin-top: 20px;">
@@ -5104,7 +5104,7 @@ function continueReviewTraining() {
         return;
     }
     
-    // 优先复习今天学习中或未掌握的单词
+    // 优先复习今天熟悉或未掌握的单词
     const reviewWords = todayWords.sort((a, b) => {
         // 未掌握优先
         if (a.status === 'new' && b.status !== 'new') return -1;
@@ -5194,7 +5194,7 @@ function startDailyTraining() {
         dailyWords = dailyWords.concat(newWords.slice(0, newCount));
     }
     
-    // 其次是学习中单词（30%）
+    // 其次是熟悉单词（30%）
     if (learningWords.length > 0 && dailyWords.length < wordsNeeded) {
         const learningCount = Math.min(Math.ceil(wordsNeeded * 0.3), learningWords.length);
         dailyWords = dailyWords.concat(learningWords.slice(0, learningCount));
@@ -5306,13 +5306,13 @@ function showTrainingScreenSimple() {
                 <button class="btn btn-blue" onclick="markTrainingWord('learning')" 
                         style="padding: 15px; background: #2196F3;">
                     <div style="font-size: 20px; margin-bottom: 5px;">🔄</div>
-                    <div>学习中</div>
+                    <div>熟悉</div>
                 </button>
                 
                 <button class="btn" onclick="markTrainingWord('new')" 
                         style="padding: 15px; background: #FF9800;">
                     <div style="font-size: 20px; margin-bottom: 5px;">📝</div>
-                    <div>需学习</div>
+                    <div>没印象</div>
                 </button>
             </div>
             
@@ -5422,8 +5422,8 @@ async function markTrainingWord(status) {
         // 显示反馈
         const statusText = {
             'mastered': '✅ 已掌握',
-            'learning': '🔄 学习中',
-            'new': '📝 需学习'
+            'learning': '🔄 熟悉',
+            'new': '📝 没印象'
         }[status];
         
         showAlert(`${statusText}: ${word.english}`, 'success');
@@ -5490,7 +5490,7 @@ function finishTraining() {
                     </div>
                     <div class="stat-card">
                         <div class="number">${learning}</div>
-                        <div class="label">学习中</div>
+                        <div class="label">熟悉</div>
                     </div>
                     <div class="stat-card">
                         <div class="number">${progress}%</div>
@@ -5660,11 +5660,11 @@ async function loadStudentWordList() {
                     </div>
                     <div class="stat-card">
                         <div class="number">${learning}</div>
-                        <div class="label">学习中</div>
+                        <div class="label">熟悉</div>
                     </div>
                     <div class="stat-card">
                         <div class="number">${review}</div>
-                        <div class="label">需学习</div>
+                        <div class="label">没印象</div>
                     </div>
                 </div>
             </div>
@@ -5673,8 +5673,8 @@ async function loadStudentWordList() {
                 <select id="word-filter" style="padding: 10px; border-radius: 5px; border: 2px solid #ddd; font-size: 16px;" onchange="filterMyWords()">
                     <option value="all">所有单词</option>
                     <option value="mastered">已掌握</option>
-                    <option value="learning">学习中</option>
-                    <option value="new">需学习</option>
+                    <option value="learning">熟悉</option>
+                    <option value="new">没印象</option>
                     <option value="recent">最近学习</option>
                 </select>
                 <input type="text" id="word-search" placeholder="🔍 搜索单词..." 
@@ -5701,8 +5701,8 @@ async function loadStudentWordList() {
             let statusText, statusColor;
             switch(record.status) {
                 case 'mastered': statusText = '✅ 已掌握'; statusColor = '#4CAF50'; break;
-                case 'learning': statusText = '🔄 学习中'; statusColor = '#FF9800'; break;
-                default: statusText = '📝 需学习'; statusColor = '#666';
+                case 'learning': statusText = '🔄 熟悉'; statusColor = '#FF9800'; break;
+                default: statusText = '📝 没印象'; statusColor = '#666';
             }
             
             const lastReview = record.last_reviewed ? 
@@ -5819,7 +5819,7 @@ function loadTodayWordsPage() {
                 <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 10px; word-break: break-word;">${word.english}</div>
                 <div style="color: #2E7D32; font-size: 1.2em; word-break: break-word;">${word.chinese}</div>
                 <div style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                    ${word.status === 'mastered' ? '✅ 已掌握' : word.status === 'learning' ? '🔄 学习中' : '📝 需学习'}
+                    ${word.status === 'mastered' ? '✅ 已掌握' : word.status === 'learning' ? '🔄 熟悉' : '📝 没印象'}
                 </div>
             </div>
         `;
