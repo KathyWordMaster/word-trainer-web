@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+E html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -6628,64 +6628,20 @@ function handleLogout() {
     }
 }
 
-// ========== 页面初始化 ==========
-window.onload = async function() {
-    console.log('🚀 Kathy单词训练系统启动');
+// 新增：显示所有已学习单词的函数
+function showAllLearnedWords() {
+    const learnedWords = appState.userWords.filter(w => w.last_reviewed);
     
-    // 立即显示连接状态
-    showMessage('login-message', '正在连接系统...', 'info');
-    
-    const savedUser = localStorage.getItem('kathy_current_user');
-    const savedRole = localStorage.getItem('kathy_user_role');
-    
-    if (savedUser) {
-        // 如果是已保存的用户，直接显示加载中，然后自动登录
-        showMessage('login-message', '正在恢复上次登录...', 'warning');
-        
-        // 延迟执行自动登录，让用户看到消息
-        setTimeout(async () => {
-            appState.currentUser = savedUser;
-            appState.isTeacher = (savedRole === 'teacher');
-            appState.userId = savedUser;
-            
-            try {
-                // 快速测试连接
-                const { error } = await dbClient.auth.getSession();
-                if (error) {
-                    throw new Error('网络连接失败');
-                }
-                
-                showMessage('login-message', `✅ 欢迎回来 ${savedUser}！`, 'success');
-                
-                setTimeout(() => {
-                    showMessage('login-message', '', 'info');
-                    if (appState.isTeacher) {
-                        showTeacherDashboard();
-                    } else {
-                        showStudentDashboard();
-                    }
-                }, 1000);
-                
-            } catch (error) {
-                showMessage('login-message', `自动登录失败：${error.message}`, 'error');
-                // 清除保存的登录状态
-                localStorage.removeItem('kathy_current_user');
-                localStorage.removeItem('kathy_user_role');
-            }
-        }, 1000);
-    } else {
-        // 新用户，立即测试数据库连接
-        testDatabase();
+    if (learnedWords.length === 0) {
+        showAlert('还没有已学习的单词', 'info');
+        return;
     }
+    
+    showWordListPage('📚 所有已学习单词', learnedWords);
+}
 
-    // 添加Enter键登录支持
-    document.getElementById('username')?.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') handleLogin();
-    });
-};
-    </script>
-</body>
-</html>
+
+
 
 // ========== 页面初始化 ==========
 window.onload = async function() {
