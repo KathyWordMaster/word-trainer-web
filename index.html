@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -2438,12 +2438,12 @@ async function loadTeacherDashboard() {
         
         try {
             // 获取单词总数
-            const { data: wordsData, error: wordsError } = await dbClient
+            const { count: wordsCountResult, error: wordsError } = await dbClient
                 .from('words')
-                .select('*')
+                .select('*', { count: 'exact' })
                 .eq('teacher_id', appState.teacherId);
             
-            if (!wordsError) wordsCount = wordsData?.length || 0;
+            if (!wordsError) wordsCount = wordsCountResult || 0;
             
         } catch (e) {
             console.log('获取单词总数错误:', e);
@@ -2451,12 +2451,12 @@ async function loadTeacherDashboard() {
         
         try {
             // 获取学生总数
-            const { data: studentsData, error: studentsError } = await dbClient
+            const { count: studentsCountResult, error: studentsError } = await dbClient
                 .from('users')
-                .select('*')
+                .select('*', { count: 'exact' })
                 .eq('is_teacher', false);
             
-            if (!studentsError) studentsCount = studentsData?.length || 0;
+            if (!studentsError) studentsCount = studentsCountResult || 0;
             
         } catch (e) {
             console.log('获取学生总数错误:', e);
@@ -2464,12 +2464,12 @@ async function loadTeacherDashboard() {
         
         try {
             // 获取已掌握单词数
-            const { data: masteredData, error: masteredError } = await dbClient
+            const { count: masteredCountResult, error: masteredError } = await dbClient
                 .from('study_records')
-                .select('*')
+                .select('*', { count: 'exact' })
                 .eq('status', 'mastered');
             
-            if (!masteredError) masteredCount = masteredData?.length || 0;
+            if (!masteredError) masteredCount = masteredCountResult || 0;
             
         } catch (e) {
             console.log('获取已掌握单词数错误:', e);
@@ -2528,6 +2528,9 @@ async function loadTeacherDashboard() {
                 </div>
             </div>
         `;
+        
+        // 自动加载今日学习数据
+        await quickStats();
         
     } catch (error) {
         console.error('加载教师面板错误:', error);
@@ -5170,9 +5173,138 @@ async function quickStats() {
         const todayStudents = new Set(todayRecords?.map(r => r.student_id) || []).size;
         const todayMastered = todayRecords?.filter(r => r.status === 'mastered').length || 0;
         
-        showAlert(`今日数据：${todayStudents}名学生学习了${todayCount}次，掌握了${todayMastered}个单词`, 'success');
+        // 获取单词总数
+        const { count: totalWordsResult } = await dbClient
+            .from('words')
+            .select('*', { count: 'exact' })
+            .eq('teacher_id', appState.teacherId);
+        const totalWords = totalWordsResult || 0;
+        
+        // 获取学生总数
+        const { count: totalStudentsResult } = await dbClient
+            .from('users')
+            .select('*', { count: 'exact' })
+            .eq('is_teacher', false);
+        const totalStudents = totalStudentsResult || 0;
+        
+        // 获取已掌握单词总数
+        const { count: totalMasteredResult } = await dbClient
+            .from('study_records')
+            .select('*', { count: 'exact' })
+            .eq('status', 'mastered');
+        const totalMastered = totalMasteredResult || 0;
+        
+        // 获取活跃学生（最近7天）
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const { data: activeData } = await dbClient
+            .from('study_records')
+            .select('student_id')
+            .gte('last_reviewed', sevenDaysAgo.toISOString());
+        const activeStudents = new Set(activeData?.map(r => r.student_id) || []).size;
+        
+        // 更新系统概览数据
+        document.getElementById('total-words').textContent = totalWords;
+        document.getElementById('total-students').textContent = totalStudents;
+        document.getElementById('mastered-words').textContent = totalMastered;
+        document.getElementById('active-students').textContent = activeStudents;
+        
+        // 在系统概览卡片下方显示今日数据
+        const teacherStats = document.getElementById('teacher-stats');
+        if (teacherStats) {
+            // 检查是否已存在今日数据部分
+            let todayDataSection = teacherStats.querySelector('.today-data-section');
+            if (!todayDataSection) {
+                todayDataSection = document.createElement('div');
+                todayDataSection.className = 'today-data-section';
+                todayDataSection.style.marginTop = '30px';
+                todayDataSection.style.paddingTop = '20px';
+                todayDataSection.style.borderTop = '2px solid #e0e0e0';
+                teacherStats.appendChild(todayDataSection);
+            }
+            
+            todayDataSection.innerHTML = `
+                <h4 style="color: #2196F3; margin-bottom: 15px;">📅 今日学习数据</h4>
+                <div class="card-grid">
+                    <div class="stat-card">
+                        <div class="number">${todayStudents}</div>
+                        <div class="label">今日活跃学生</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${todayCount}</div>
+                        <div class="label">今日学习次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${todayMastered}</div>
+                        <div class="label">今日掌握单词</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${Math.round((todayStudents / totalStudents) * 100) || 0}%</div>
+                        <div class="label">今日参与率</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #E3F2FD; border-radius: 10px; text-align: left;">
+                    <p style="color: #1565C0; margin: 0;">
+                        💡 提示：今日共有 ${todayStudents} 名学生进行了学习，完成了 ${todayCount} 次学习，掌握了 ${todayMastered} 个单词。
+                        ${todayStudents > 0 ? '学生学习积极性很高，继续保持！' : '今天还没有学生学习，提醒学生开始学习吧！'}
+                    </p>
+                </div>
+            `;
+        }
+        
+        // 在教师内容区域显示快速操作
+        const content = document.getElementById('teacher-content');
+        content.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: #333; margin-bottom: 20px;">✨ 快速操作</h3>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0;">
+                    <button class="btn" style="padding: 12px 24px;" onclick="showUploadWordsPage()">
+                        <span>📤 快速上传</span>
+                    </button>
+                    <button class="btn btn-blue" style="padding: 12px 24px;" onclick="quickStats()">
+                        <span>📈 今日数据</span>
+                    </button>
+                    <button class="btn" style="padding: 12px 24px;" onclick="showStudentActivity()">
+                        <span>👀 学生活跃</span>
+                    </button>
+                </div>
+                
+                
+                <div class="stats-card" style="margin-top: 20px;">
+                    <h4 style="color: #333; margin-bottom: 15px;">💡 系统提示</h4>
+                    <p style="color: #666; margin: 5px 0;">• 已上传 ${totalWords} 个单词</p>
+                    <p style="color: #666; margin: 5px 0;">• 共有 ${totalStudents} 名学生</p>
+                    <p style="color: #666; margin: 5px 0;">• 最近7天 ${activeStudents} 名活跃学生</p>
+                    <p style="color: #666; margin: 5px 0;">• 学生共掌握 ${totalMastered} 个单词</p>
+                </div>
+            </div>
+        `;
+        
     } catch (error) {
-        showAlert('获取今日数据失败', 'error');
+        console.error('获取系统数据错误:', error);
+        const content = document.getElementById('teacher-content');
+        content.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: #333; margin-bottom: 20px;">✨ 快速操作</h3>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0;">
+                    <button class="btn" style="padding: 12px 24px;" onclick="showUploadWordsPage()">
+                        <span>📤 快速上传</span>
+                    </button>
+                    <button class="btn btn-blue" style="padding: 12px 24px;" onclick="quickStats()">
+                        <span>📈 今日数据</span>
+                    </button>
+                    <button class="btn" style="padding: 12px 24px;" onclick="showStudentActivity()">
+                        <span>👀 学生活跃</span>
+                    </button>
+                </div>
+                
+                <div class="message-box message-error" style="margin-top: 30px;">
+                    <h4>❌ 数据加载失败</h4>
+                    <p>获取系统数据时出错，请重试</p>
+                </div>
+            </div>
+        `;
     }
 }
 
@@ -5882,7 +6014,7 @@ async function markTrainingWord(status) {
             if (appState.currentWordIndex < appState.trainingWords.length) {
                 showTrainingScreenSimple();
             } else {
-                finishTraining();
+                showReviewQuiz();
             }
         }, 800);
         
@@ -5901,6 +6033,206 @@ function skipTrainingWord() {
     } else {
         finishTraining();
     }
+}
+
+// 构建选择题选项
+function buildQuizOptions(correctAnswer, currentWord) {
+    // 从其他单词中选择干扰选项
+    const otherWords = appState.userWords
+        .filter(w => {
+            // 排除当前单词
+            const wordId = currentWord.word_id || currentWord.id;
+            const otherWordId = w.word_id || w.id;
+            return otherWordId !== wordId;
+        })
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3);
+    
+    // 提取干扰选项的中文意思
+    let distractors = otherWords.map(w => w.chinese);
+    
+    // 如果干扰选项不足3个，基于正确答案生成干扰选项
+    while (distractors.length < 3) {
+        // 基于正确答案生成干扰选项
+        const distractor = generateDistractor(correctAnswer);
+        // 确保干扰选项与正确答案不同，且不重复
+        if (distractor !== correctAnswer && !distractors.includes(distractor)) {
+            distractors.push(distractor);
+        }
+    }
+    
+    // 组合正确答案和干扰选项
+    const options = [correctAnswer, ...distractors];
+    
+    // 随机打乱选项顺序
+    return options.sort(() => 0.5 - Math.random());
+}
+
+// 基于正确答案生成干扰选项
+function generateDistractor(correctAnswer) {
+    // 常见的前缀和后缀
+    const prefixes = ['小', '大', '新', '旧', '好', '坏', '高', '低', '快', '慢'];
+    const suffixes = ['的', '了', '吗', '呢', '吧', '啊', '哦', '呀', '哇', '啦'];
+    
+    // 随机选择生成策略
+    const strategy = Math.floor(Math.random() * 3);
+    
+    switch (strategy) {
+        case 0:
+            // 添加前缀
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            return prefix + correctAnswer;
+        case 1:
+            // 添加后缀
+            const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+            return correctAnswer + suffix;
+        case 2:
+            // 混合策略：添加前缀和后缀
+            const mixedPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const mixedSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+            return mixedPrefix + correctAnswer + mixedSuffix;
+        default:
+            // 默认策略：添加后缀
+            return correctAnswer + suffixes[Math.floor(Math.random() * suffixes.length)];
+    }
+}
+
+// 复习测验功能
+function showReviewQuiz() {
+    // 从训练过的单词中选择要测试的单词（最多5个）
+    const trainedWords = appState.trainingWords.filter(word => word.status !== 'skip');
+    const quizWords = trainedWords.sort(() => 0.5 - Math.random()).slice(0, Math.min(5, trainedWords.length));
+    
+    if (quizWords.length === 0) {
+        // 如果没有可测试的单词，直接结束训练
+        finishTraining();
+        return;
+    }
+    
+    // 生成选择题
+    const quizQuestions = quizWords.map((word, index) => {
+        // 使用 buildQuizOptions 方法生成选项
+        const options = buildQuizOptions(word.chinese, word);
+        
+        return {
+            id: index,
+            word: word,
+            question: `"${word.english}" 的中文意思是？`,
+            options: options,
+            correctAnswer: word.chinese
+        };
+    });
+    
+    // 保存测验数据到状态
+    appState.quizData = {
+        questions: quizQuestions,
+        currentQuestionIndex: 0,
+        score: 0
+    };
+    
+    // 显示第一个问题
+    displayQuizQuestion();
+}
+
+function displayQuizQuestion() {
+    const quizData = appState.quizData;
+    const currentQuestion = quizData.questions[quizData.currentQuestionIndex];
+    
+    const content = document.getElementById('training-content');
+    content.innerHTML = `
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px;">
+            <h3 style="color: #333; margin-bottom: 30px; text-align: center;">📝 复习测验</h3>
+            <div style="margin-bottom: 30px;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                    问题 ${quizData.currentQuestionIndex + 1}/${quizData.questions.length}
+                </div>
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 25px; padding: 20px; background-color: #f9f9f9; border-radius: 8px;">
+                    ${currentQuestion.question}
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${currentQuestion.options.map((option, index) => `
+                        <button 
+                            class="btn" 
+                            style="text-align: left; padding: 15px 20px; font-size: 16px;" 
+                            onclick="submitQuizAnswer('${option}')"
+                        >
+                            ${String.fromCharCode(65 + index)}. ${option}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function submitQuizAnswer(selectedAnswer) {
+    const quizData = appState.quizData;
+    const currentQuestion = quizData.questions[quizData.currentQuestionIndex];
+    
+    // 检查答案是否正确
+    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+    if (isCorrect) {
+        quizData.score++;
+    }
+    
+    // 显示答案反馈
+    showAlert(
+        isCorrect ? `✅ 正确！${currentQuestion.word.english} = ${currentQuestion.correctAnswer}` : 
+                    `❌ 错误！正确答案是：${currentQuestion.correctAnswer}`,
+        isCorrect ? 'success' : 'error'
+    );
+    
+    // 延迟后进入下一个问题或结束测验
+    setTimeout(() => {
+        quizData.currentQuestionIndex++;
+        
+        if (quizData.currentQuestionIndex < quizData.questions.length) {
+            // 显示下一个问题
+            displayQuizQuestion();
+        } else {
+            // 测验完成，显示结果
+            finishQuiz();
+        }
+    }, 1500);
+}
+
+function finishQuiz() {
+    const quizData = appState.quizData;
+    const totalQuestions = quizData.questions.length;
+    const score = quizData.score;
+    const percentage = Math.round((score / totalQuestions) * 100);
+    
+    const content = document.getElementById('training-content');
+    content.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 3em; margin-bottom: 20px;">📊</div>
+            <h3 style="color: #333; margin-bottom: 15px;">测验完成！</h3>
+            <div class="stats-card" style="max-width: 400px; margin: 0 auto;">
+                <div class="card-grid">
+                    <div class="stat-card">
+                        <div class="number">${totalQuestions}</div>
+                        <div class="label">总题数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${score}</div>
+                        <div class="label">答对</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number">${percentage}%</div>
+                        <div class="label">正确率</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 30px;">
+                <button class="btn" onclick="finishTraining()" style="margin: 10px;">
+                    查看训练结果
+                </button>
+                <button class="btn btn-red" onclick="showStudentDashboard()" style="margin: 10px;">
+                    返回主页
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 function finishTraining() {
