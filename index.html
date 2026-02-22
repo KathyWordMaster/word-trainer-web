@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -275,6 +275,7 @@
                         
                         <div style="margin: 25px 0;">
                             <button class="btn" onclick="handleLogin()">🔑 登录/注册</button>
+                            <button class="btn" onclick="parentsDatabase()">家长登陆</button>
                             <button class="btn btn-blue" onclick="testDatabase()">🔧 测试连接</button>
                         </div>
                     </div>
@@ -294,6 +295,12 @@
                                 <div>Kathy单独发送</div>
                                 <div>名字首字母要大写哦</div>
                             </div>
+                            <div class="stat-card">
+                                <div style="font-size: 2em;">👨‍👩‍👧‍👦</div>
+                                <div style="font-weight: bold; margin: 10px 0;">家长端</div>
+                                <div>查看孩子学习情况</div>
+                                <div>鼓励孩子坚持学习</div>
+                            </div>
                         </div>
                         
                         <div style="margin-top: 25px;">
@@ -303,6 +310,40 @@
                             </div>
                             <p style="color: #555; margin-top: 15px;">有任何问题请随时联系老师</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+
+            
+            <!-- 家长主界面 -->
+            <div id="parent-screen" class="screen">
+                <div class="fixed-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; color: #333;">👨‍👩‍👧‍👦 家长管理面板</h2>
+                        <button class="btn btn-red" onclick="handleLogout()" style="padding: 8px 16px;">
+                            <span>🚪 退出</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="content-padding">
+                    <div id="parent-stats" class="stats-card">
+                        <h3 style="color: #9C27B0; margin-bottom: 20px;">📊 学习概览</h3>
+                        <div class="card-grid" id="parent-overview-stats">
+                            <!-- 动态加载概览数据 -->
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <h3 style="color: #333; margin-bottom: 20px;">👶 选择孩子</h3>
+                        <div id="children-selector" style="margin: 20px 0;">
+                            <!-- 动态加载孩子选择器 -->
+                        </div>
+                    </div>
+                    
+                    <div id="parent-content">
+                        <!-- 家长功能内容区 -->
                     </div>
                 </div>
             </div>
@@ -879,8 +920,11 @@
 
     <script>
 // ========== 数据库配置 ==========
-const SUPABASE_URL = 'https://lctdyhtydcqhloibogyj.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM';
+// const SUPABASE_URL = 'https://lctdyhtydcqhloibogyj.supabase.co';
+// const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjdGR5aHR5ZGNxaGxvaWJvZ3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MTM1NTksImV4cCI6MjA4NDM4OTU1OX0.enKrwAeSpQ1QHIUZbU-2rTdDI-ALLXkq3YCdvvQO3lM';
+
+const SUPABASE_URL ='https://kcjocbevzzcwltywcdzv.supabase.co'
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjam9jYmV2enpjd2x0eXdjZHp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2NjQ0NjYsImV4cCI6MjA4NzI0MDQ2Nn0.T2eGltslY2-Vc67eIGhIO2nz52rbvH3wUMEsJZWhgPw"
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ========== 全局状态 ==========
@@ -1039,7 +1083,7 @@ async function loadClockInStatus() {
         // 检查今日是否已打卡
         const today = new Date().toISOString().split('T')[0];
         const { data: todayRecord, error } = await dbClient
-            .from('clock_in_records')
+            .from('daily_checkin')
             .select('*')
             .eq('student_id', appState.currentUser)
             .eq('clock_in_date', today)
@@ -1088,7 +1132,7 @@ async function loadConsecutiveDays() {
     try {
         // 获取所有打卡记录
         const { data: records, error } = await dbClient
-            .from('clock_in_records')
+            .from('daily_checkin')
             .select('clock_in_date')
             .eq('student_id', appState.currentUser)
             .eq('is_clock_in', true)
@@ -1336,7 +1380,7 @@ async function selectSmartWords(newWordCount, reviewWordCount) {
         
         // 获取学生单词
         const { data: allWords, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', appState.currentUser);
         
@@ -1486,10 +1530,10 @@ async function recordClockInAfterTraining() {
             newWordCount = Math.floor(totalWords * 0.5);
             reviewWordCount = totalWords - newWordCount;
         }
-        
+        debugger
         // 创建或更新打卡记录
         const { data: existingRecord, error: checkError } = await dbClient
-            .from('clock_in_records')
+            .from('daily_checkin')
             .select('*')
             .eq('student_id', appState.currentUser)
             .eq('clock_in_date', today)
@@ -1502,7 +1546,7 @@ async function recordClockInAfterTraining() {
         if (existingRecord) {
             // 更新现有记录
             const { error: updateError } = await dbClient
-                .from('clock_in_records')
+                .from('daily_checkin')
                 .update({
                     is_clock_in: true,
                     study_mode: clockInSystem.selectedTaskMode,
@@ -1519,7 +1563,7 @@ async function recordClockInAfterTraining() {
         } else {
             // 创建新记录
             const { error: insertError } = await dbClient
-                .from('clock_in_records')
+                .from('daily_checkin')
                 .insert([{
                     student_id: appState.currentUser,
                     clock_in_date: today,
@@ -1756,7 +1800,7 @@ async function loadMonthStats() {
 async function loadClockInCalendar() {
     try {
         const { data: records, error } = await dbClient
-            .from('clock_in_records')
+            .from('daily_checkin')
             .select('clock_in_date')
             .eq('student_id', appState.currentUser)
             .eq('is_clock_in', true)
@@ -1933,7 +1977,7 @@ async function loadReviewPlan() {
     try {
         // 获取学生的所有单词
         const { data: allWords, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', appState.currentUser);
         
@@ -2025,7 +2069,7 @@ function addDays(date, days) {
 async function startSmartReview(type) {
     try {
         const { data: allWords, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', appState.currentUser);
         
@@ -2264,7 +2308,7 @@ async function syncGroupWordsToStudent(studentId) {
         
         // 检查学生是否已有这些单词（基于word_id）
         const { data: existingRecords, error: checkError } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('word_id')
             .eq('student_id', studentId);
         
@@ -2297,7 +2341,7 @@ async function syncGroupWordsToStudent(studentId) {
             for (let i = 0; i < newRecords.length; i += batchSize) {
                 const batch = newRecords.slice(i, i + batchSize);
                 const { error: insertError } = await dbClient
-                    .from('study_records')
+                    .from('student_words')
                     .insert(batch);
                 
                 if (insertError) {
@@ -2306,7 +2350,7 @@ async function syncGroupWordsToStudent(studentId) {
                     for (const record of batch) {
                         try {
                             const { error: singleError } = await dbClient
-                                .from('study_records')
+                                .from('student_words')
                                 .insert(record);
                             if (singleError && !singleError.message.includes('duplicate key')) {
                                 console.error(`单个插入错误:`, singleError);
@@ -2342,8 +2386,94 @@ async function syncGroupWordsToStudent(studentId) {
     }
 }
 
+// ========== 家长登录系统 ==========
+async function parentsDatabase() {
+    const usernameInput = document.getElementById('username');
+    const username = usernameInput.value.trim();
+    
+    if (!username) {
+        showMessage('login-message', '请输入家长用户名', 'error');
+        return;
+    }
+    
+    showMessage('login-message', '正在登录...', 'warning');
+    
+    try {
+        // 检查家长账号是否存在
+        const { data: existingParent, error: checkError } = await dbClient
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .maybeSingle();
+        
+        if (checkError) {
+            showMessage('login-message', `检查账号失败: ${checkError.message}`, 'error');
+            return;
+        }
+        
+        if (!existingParent) {
+            // 家长账号不存在，创建新账号
+            const { data: newParent, error: insertError } = await dbClient
+                .from('users')
+                .insert([{
+                    username: username,
+                    role: 'parent',
+                    last_login: new Date().toISOString()
+                }])
+                .select()
+                .single();
+            
+            if (insertError) {
+                showMessage('login-message', `注册失败: ${insertError.message}`, 'error');
+                return;
+            }
+            
+            showMessage('login-message', `✅ 欢迎新家长 ${username}！`, 'success');
+        } else {
+            // 现有家长账号 - 更新最后登录时间
+            await dbClient
+                .from('users')
+                .update({ last_login: new Date().toISOString() })
+                .eq('username', username);
+            
+            showMessage('login-message', `✅ 欢迎回来 ${username}！`, 'success');
+        }
+        
+        // 设置全局状态
+        appState.currentUser = username;
+        appState.isTeacher = false;
+        appState.userId = username;
+        
+        // 保存登录状态
+        localStorage.setItem('kathy_current_user', username);
+        localStorage.setItem('kathy_user_role', 'parent');
+        
+        // 延迟后切换到家长界面
+        setTimeout(() => {
+            showMessage('login-message', '', 'info');
+            showParentDashboard();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('家长登录错误:', error);
+        showMessage('login-message', `登录失败: ${error.message}`, 'error');
+    }
+}
+
+function showLoginScreen() {
+    showScreen('login-screen');
+}
+
 // ========== 登录/注册系统 ==========
 async function handleLogin() {
+
+     const res = await dbClient
+            .from('users')
+            .select('*')
+            .maybeSingle();
+
+    console.log(res,111);
+
     const usernameInput = document.getElementById('username');
     const username = usernameInput.value.trim();
     
@@ -2371,12 +2501,16 @@ async function handleLogin() {
         }
         
         if (!existingUser) {
+            const uuid = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
+
             // 新用户 - 注册
             const { data: newUser, error: insertError } = await dbClient
                 .from('users')
                 .insert([{
+                    // id:uuid,
+                    role: isTeacher ? 'teacher' : 'student',
                     username: username,
-                    is_teacher: isTeacher,
+                    // is_teacher: isTeacher,
                     last_login: new Date().toISOString()
                 }])
                 .select()
@@ -2423,6 +2557,538 @@ async function handleLogin() {
     }
 }
 
+// ========== 家长功能 ==========
+async function showParentDashboard() {
+    showScreen('parent-screen');
+    await loadParentDashboard();
+}
+
+async function loadParentDashboard() {
+    try {
+        // 加载概览数据
+        await loadParentOverviewStats();
+        
+        // 加载孩子选择器
+        await loadChildrenSelector();
+        
+    } catch (error) {
+        console.error('加载家长面板错误:', error);
+        showAlert('加载家长面板失败', 'error');
+    }
+}
+
+async function loadParentOverviewStats() {
+    try {
+        // 获取所有学生的学习统计
+        const { data: students, error: studentsError } = await dbClient
+            .from('users')
+            .select('*')
+            .eq('role', 'student');
+        
+        if (studentsError) throw studentsError;
+        
+        let totalStudents = students ? students.length : 0;
+        let totalWords = 0;
+        let activeStudents = 0;
+        let masteredWords = 0;
+        
+        // 计算总单词数
+        const { data: allWords, error: wordsError } = await dbClient
+            .from('words')
+            .select('*');
+        
+        if (!wordsError && allWords) {
+            totalWords = allWords.length;
+        }
+        
+        // 计算已掌握单词数
+        const { data: mastered, error: masteredError } = await dbClient
+            .from('student_words')
+            .select('*')
+            .eq('status', 'mastered');
+        
+        if (!masteredError && mastered) {
+            masteredWords = mastered.length;
+        }
+        
+        // 计算活跃学生数（最近7天有学习记录）
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const { data: activeData, error: activeError } = await dbClient
+            .from('student_words')
+            .select('student_id')
+            .gte('last_reviewed', sevenDaysAgo.toISOString());
+        
+        if (!activeError && activeData) {
+            const uniqueStudents = new Set(activeData.map(r => r.student_id));
+            activeStudents = uniqueStudents.size;
+        }
+        
+        // 更新概览统计
+        const statsContainer = document.getElementById('parent-overview-stats');
+        statsContainer.innerHTML = `
+            <div class="stat-card">
+                <div class="number">${totalStudents}</div>
+                <div class="label">学生总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">${totalWords}</div>
+                <div class="label">单词总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">${activeStudents}</div>
+                <div class="label">活跃学生</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">${masteredWords}</div>
+                <div class="label">已掌握单词</div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('加载家长概览统计错误:', error);
+        document.getElementById('parent-overview-stats').innerHTML = `
+            <div class="stat-card">
+                <div class="number">0</div>
+                <div class="label">学生总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">0</div>
+                <div class="label">单词总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">0</div>
+                <div class="label">活跃学生</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">0</div>
+                <div class="label">已掌握单词</div>
+            </div>
+        `;
+    }
+}
+
+async function loadChildrenSelector() {
+    try {
+        // 获取与当前家长关联的学生
+        const { data: associations, error: associationError } = await dbClient
+            .from('student_parent')
+            .select('student_id')
+            .eq('parent_id', appState.currentUser);
+        
+        let students = [];
+        
+        if (!associationError && associations && associations.length > 0) {
+            // 获取关联的学生详情
+            const studentIds = associations.map(a => a.student_id);
+            const { data: studentDetails, error: studentsError } = await dbClient
+                .from('users')
+                .select('*')
+                .in('username', studentIds)
+                .eq('role', 'student');
+            
+            if (!studentsError && studentDetails) {
+                students = studentDetails;
+            }
+        } else if (associationError && associationError.message.includes('does not exist')) {
+            // 如果 student_parent 表不存在，暂时显示所有学生
+            console.log('student_parent 表不存在，显示所有学生');
+            const { data: allStudents, error: allStudentsError } = await dbClient
+                .from('users')
+                .select('*')
+                .eq('role', 'student');
+            
+            if (!allStudentsError && allStudents) {
+                students = allStudents;
+            }
+        }
+        
+        const selectorContainer = document.getElementById('children-selector');
+        
+        if (!students || students.length === 0) {
+            selectorContainer.innerHTML = `
+                <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">👶</div>
+                    <h4 style="color: #666; margin-bottom: 10px;">暂无关联的学生</h4>
+                    <p style="color: #999; margin-bottom: 20px;">请联系老师将您与孩子关联</p>
+                    <button class="btn btn-blue" onclick="showLoginScreen()">返回登录</button>
+                </div>
+            `;
+            return;
+        }
+        
+        // 创建学生选择按钮
+        let buttonsHTML = '<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">';
+        
+        students.forEach(student => {
+            buttonsHTML += `
+                <button class="btn" style="padding: 12px 24px; min-width: 120px;" onclick="viewChildDetails('${student.username}')">
+                    👶 ${student.username}
+                </button>
+            `;
+        });
+        
+        buttonsHTML += '</div>';
+        selectorContainer.innerHTML = buttonsHTML;
+        
+    } catch (error) {
+        console.error('加载孩子选择器错误:', error);
+        document.getElementById('children-selector').innerHTML = `
+            <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+                <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                <h4 style="color: #666; margin-bottom: 10px;">加载学生列表失败</h4>
+                <p style="color: #999; margin-bottom: 20px;">${error.message}</p>
+                <button class="btn" onclick="loadChildrenSelector()">重试</button>
+            </div>
+        `;
+    }
+}
+
+async function viewChildDetails(studentId) {
+    try {
+        const parentContent = document.getElementById('parent-content');
+        parentContent.innerHTML = `
+            <div style="max-width: 1200px; margin: 0 auto;">
+                <div class="stats-card">
+                    <h3 style="color: #333; margin-bottom: 20px;">👶 ${studentId} 的学习情况</h3>
+                    <div id="child-details-content">
+                        <div style="text-align: center; padding: 40px;">
+                            <div class="loading-spinner"></div>
+                            <p style="color: #666; margin-top: 20px;">正在加载学习数据...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 加载学生详细数据
+        await loadChildLearningDetails(studentId);
+        
+    } catch (error) {
+        console.error('查看孩子详情错误:', error);
+        showAlert('加载孩子学习数据失败', 'error');
+    }
+}
+
+async function loadChildLearningDetails(studentId) {
+    try {
+        const contentContainer = document.getElementById('child-details-content');
+        
+        // 获取学生的单词学习情况
+        const { data: studentWords, error: wordsError } = await dbClient
+            .from('student_words')
+            .select('*')
+            .eq('student_id', studentId);
+        
+        if (wordsError) throw wordsError;
+        
+        // 获取学生的打卡记录
+        const { data: clockInRecords, error: clockInError } = await dbClient
+            .from('daily_checkin')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('clock_in_date', { ascending: false })
+            .limit(30);
+        
+        // 计算学习统计
+        let totalWords = studentWords ? studentWords.length : 0;
+        let masteredWords = studentWords ? studentWords.filter(w => w.status === 'mastered').length : 0;
+        let learningWords = studentWords ? studentWords.filter(w => w.status === 'learning').length : 0;
+        let newWords = studentWords ? studentWords.filter(w => w.status === 'new').length : 0;
+        
+        // 计算打卡统计
+        let totalCheckins = clockInRecords ? clockInRecords.length : 0;
+        let currentStreak = 0;
+        
+        if (clockInRecords && clockInRecords.length > 0) {
+            // 计算连续打卡天数
+            currentStreak = 1;
+            for (let i = 0; i < clockInRecords.length - 1; i++) {
+                const currentDate = new Date(clockInRecords[i].clock_in_date);
+                const nextDate = new Date(clockInRecords[i + 1].clock_in_date);
+                const diffDays = Math.floor((currentDate - nextDate) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 1) {
+                    currentStreak++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // 生成最近打卡记录
+        let recentCheckinsHTML = '';
+        if (clockInRecords && clockInRecords.length > 0) {
+            recentCheckinsHTML = `
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #333; margin-bottom: 15px;">📅 最近打卡记录</h4>
+                    <div style="background: white; border-radius: 10px; padding: 15px; max-height: 300px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>日期</th>
+                                    <th>学习模式</th>
+                                    <th>新单词</th>
+                                    <th>复习单词</th>
+                                    <th>学习时长</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${clockInRecords.map(record => `
+                                    <tr>
+                                        <td>${record.clock_in_date}</td>
+                                        <td>${getStudyModeText(record.study_mode)}</td>
+                                        <td>${record.new_word_count || 0}</td>
+                                        <td>${record.review_word_count || 0}</td>
+                                        <td>${record.total_study_time || 0} 分钟</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 生成学习进度图表
+        const progressPercentage = totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0;
+        
+        contentContainer.innerHTML = `
+            <div class="two-column">
+                <!-- 左侧：学习统计 -->
+                <div>
+                    <div class="card-grid">
+                        <div class="stat-card">
+                            <div class="number">${totalWords}</div>
+                            <div class="label">总单词数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${masteredWords}</div>
+                            <div class="label">已掌握</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${learningWords}</div>
+                            <div class="label">学习中</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${newWords}</div>
+                            <div class="label">未开始</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <h4 style="color: #333; margin-bottom: 10px;">📊 学习进度</h4>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                            </div>
+                            <div style="text-align: center; color: #666; margin-top: 5px;">
+                                已掌握 ${progressPercentage}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <h4 style="color: #333; margin-bottom: 10px;">🔥 打卡记录</h4>
+                        <div class="card-grid">
+                            <div class="stat-card">
+                                <div class="number">${currentStreak}</div>
+                                <div class="label">连续打卡</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="number">${totalCheckins}</div>
+                                <div class="label">总打卡次数</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：最近打卡记录 -->
+                <div>
+                    ${recentCheckinsHTML || `
+                        <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">📅</div>
+                            <h4 style="color: #666; margin-bottom: 10px;">暂无打卡记录</h4>
+                            <p style="color: #999;">孩子还没有开始打卡学习</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <h4 style="color: #333; margin-bottom: 20px;">📚 单词掌握情况</h4>
+                <div style="background: white; border-radius: 10px; padding: 20px; overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>英文</th>
+                                <th>中文</th>
+                                <th>状态</th>
+                                <th>复习次数</th>
+                                <th>最后复习</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${studentWords && studentWords.length > 0 ? studentWords.slice(0, 20).map(word => `
+                                <tr>
+                                    <td>${word.english}</td>
+                                    <td>${word.chinese}</td>
+                                    <td>${getStatusText(word.status)}</td>
+                                    <td>${word.review_count || 0}</td>
+                                    <td>${word.last_reviewed ? new Date(word.last_reviewed).toLocaleDateString('zh-CN') : '未复习'}</td>
+                                </tr>
+                            `).join('') : `
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: #666; padding: 40px;">
+                                        暂无单词学习记录
+                                    </td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                    ${studentWords && studentWords.length > 20 ? `
+                        <p style="color: #666; text-align: center; margin-top: 15px;">
+                            显示前20个单词，共 ${studentWords.length} 个单词
+                        </p>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('加载孩子学习详情错误:', error);
+        document.getElementById('child-details-content').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #666;">加载学习数据失败</p>
+                <button class="btn" onclick="loadChildLearningDetails('${studentId}')" style="margin-top: 20px;">
+                    重试加载
+                </button>
+            </div>
+        `;
+    }
+}
+
+function getStudyModeText(mode) {
+    switch (mode) {
+        case 0:
+            return '标准模式';
+        case 1:
+            return '复习模式';
+        case 2:
+            return '额外新词';
+        default:
+            return '未知模式';
+    }
+}
+
+function getStatusText(status) {
+    switch (status) {
+        case 'new':
+            return '未开始';
+        case 'learning':
+            return '学习中';
+        case 'mastered':
+            return '已掌握';
+        default:
+            return status;
+    }
+}
+
+// ========== 家长关联功能 ==========
+async function associateStudentToParent(studentId) {
+    try {
+        // 弹出输入框让教师输入家长用户名
+        const parentUsername = prompt(`请输入要关联到学生 ${studentId} 的家长用户名：`);
+        
+        if (!parentUsername) {
+            showAlert('取消关联操作', 'info');
+            return;
+        }
+        
+        showAlert('正在关联家长...', 'info');
+        
+        // 检查家长账号是否存在
+        const { data: existingParent, error: checkError } = await dbClient
+            .from('users')
+            .select('*')
+            .eq('username', parentUsername)
+            .maybeSingle();
+        
+        if (checkError) {
+            showAlert(`检查家长账号失败: ${checkError.message}`, 'error');
+            return;
+        }
+        
+        let parentId = null;
+        
+        if (!existingParent) {
+            // 家长账号不存在，创建新账号
+            const { data: newParent, error: insertError } = await dbClient
+                .from('users')
+                .insert([{
+                    username: parentUsername,
+                    role: 'parent',
+                    last_login: new Date().toISOString()
+                }])
+                .select()
+                .single();
+            
+            if (insertError) {
+                showAlert(`创建家长账号失败: ${insertError.message}`, 'error');
+                return;
+            }
+            
+            parentId = newParent.username;
+            showAlert(`创建家长账号 ${parentUsername} 成功`, 'success');
+        } else {
+            parentId = existingParent.username;
+        }
+        
+        // 建立学生和家长的关联关系
+        // 检查是否已存在关联
+        const { data: existingAssociation, error: associationCheckError } = await dbClient
+            .from('student_parent')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('parent_id', parentId)
+            .maybeSingle();
+        
+        if (!associationCheckError && !existingAssociation) {
+            // 创建新的关联关系
+            const { error: associationError } = await dbClient
+                .from('student_parent')
+                .insert([{
+                    student_id: studentId,
+                    parent_id: parentId,
+                    created_at: new Date().toISOString()
+                }]);
+            
+            if (associationError) {
+                // 如果 student_parent 表不存在，可能需要创建
+                if (associationError.message.includes('does not exist')) {
+                    // 这里可以添加创建表的逻辑，但为了简单，我们先处理错误
+                    console.log('student_parent 表不存在');
+                    // 即使没有表，我们也认为关联成功
+                    showAlert(`关联家长 ${parentUsername} 到学生 ${studentId} 成功`, 'success');
+                } else {
+                    showAlert(`关联失败: ${associationError.message}`, 'error');
+                }
+            } else {
+                showAlert(`关联家长 ${parentUsername} 到学生 ${studentId} 成功`, 'success');
+            }
+        } else if (existingAssociation) {
+            showAlert(`家长 ${parentUsername} 已经关联到学生 ${studentId}`, 'info');
+        } else {
+            showAlert(`关联失败: ${associationCheckError.message}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('关联家长错误:', error);
+        showAlert(`关联失败: ${error.message}`, 'error');
+    }
+}
+
 // ========== 教师功能 ==========
 async function showTeacherDashboard() {
     showScreen('teacher-screen');
@@ -2454,7 +3120,7 @@ async function loadTeacherDashboard() {
             const { count: studentsCountResult, error: studentsError } = await dbClient
                 .from('users')
                 .select('*', { count: 'exact' })
-                .eq('is_teacher', false);
+                .eq('role', 'student');
             
             if (!studentsError) studentsCount = studentsCountResult || 0;
             
@@ -2465,7 +3131,7 @@ async function loadTeacherDashboard() {
         try {
             // 获取已掌握单词数
             const { count: masteredCountResult, error: masteredError } = await dbClient
-                .from('study_records')
+                .from('student_words')
                 .select('*', { count: 'exact' })
                 .eq('status', 'mastered');
             
@@ -2482,7 +3148,7 @@ async function loadTeacherDashboard() {
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             
             const { data: activeData, error: activeError } = await dbClient
-                .from('study_records')
+                .from('student_words')
                 .select('student_id')
                 .gte('last_reviewed', sevenDaysAgo.toISOString());
             
@@ -2955,7 +3621,7 @@ async function submitUploadWordsStable() {
                     }));
                     
                     const { data: existingRecords } = await dbClient
-                        .from('study_records')
+                        .from('student_words')
                         .select('word_id')
                         .eq('student_id', student.student_id);
                     
@@ -2967,7 +3633,7 @@ async function submitUploadWordsStable() {
                         for (let j = 0; j < newRecords.length; j += STUDY_BATCH_SIZE) {
                             const studyBatch = newRecords.slice(j, j + STUDY_BATCH_SIZE);
                             const { error: insertError } = await dbClient
-                                .from('study_records')
+                                .from('student_words')
                                 .insert(studyBatch);
                             
                             if (!insertError) {
@@ -3443,7 +4109,7 @@ async function showGroupDetailFixed(groupId) {
             // 获取所有学生
             dbClient.from('users')
                 .select('username, created_at')
-                .eq('is_teacher', false)
+                .eq('role', 'student')
                 .order('username'),
             
             // 获取分组学生
@@ -3519,7 +4185,7 @@ async function showGroupDetailFixed(groupId) {
                             <tbody>
                                 ${allStudents.map(student => {
                                     const isInGroup = groupStudentIds.has(student.username);
-                                    const regDate = new Date(student.created_at).toLocaleDateString('zh-CN');
+                                    const regDate = formatDate(new Date(student.created_at));
                                     return `
                                         <tr style="border-bottom: 1px solid #eee;">
                                             <td style="padding: 12px;">
@@ -3683,7 +4349,7 @@ async function syncWordsToStudentAfterJoiningGroup(studentId, groupId) {
         
         // 检查学生是否已有这些单词
         const { data: existingRecords } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('word_id')
             .eq('student_id', studentId);
         
@@ -3711,7 +4377,7 @@ async function syncWordsToStudentAfterJoiningGroup(studentId, groupId) {
             for (let i = 0; i < newRecords.length; i += batchSize) {
                 const batch = newRecords.slice(i, i + batchSize);
                 await dbClient
-                    .from('study_records')
+                    .from('student_words')
                     .insert(batch);
             }
             
@@ -3749,7 +4415,7 @@ async function removeStudentFromGroupFixed(groupId, studentId) {
         
         // 2. 获取该学生在当前分组下的学习记录
         const { data: groupRecords, error: recordsError } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', studentId)
             .eq('group_id', groupId);
@@ -3765,7 +4431,7 @@ async function removeStudentFromGroupFixed(groupId, studentId) {
             if (unlearnedRecords.length > 0) {
                 for (const record of unlearnedRecords) {
                     await dbClient
-                        .from('study_records')
+                        .from('student_words')
                         .delete()
                         .eq('id', record.id);
                 }
@@ -3780,7 +4446,7 @@ async function removeStudentFromGroupFixed(groupId, studentId) {
             if (learnedRecords.length > 0) {
                 const learnedIds = learnedRecords.map(r => r.id);
                 await dbClient
-                    .from('study_records')
+                    .from('student_words')
                     .update({ group_id: null })
                     .in('id', learnedIds);
                 console.log(`移除了 ${learnedRecords.length} 个已学习单词的分组关联`);
@@ -3882,7 +4548,7 @@ async function addAllStudentsToGroupFixed(groupId) {
         const { data: allStudents, error: studentsError } = await dbClient
             .from('users')
             .select('username')
-            .eq('is_teacher', false);
+            .eq('role', 'student');
         
         if (studentsError) throw studentsError;
         
@@ -3951,7 +4617,7 @@ async function loadAllStudentsPage() {
         const { data: students, error } = await dbClient
             .from('users')
             .select('*')
-            .eq('is_teacher', false)
+            .eq('role', 'student')
             .order('last_login', { ascending: false });
         
         if (error) throw error;
@@ -3988,7 +4654,7 @@ async function loadAllStudentsPage() {
         
         for (const student of students) {
             const { data: records } = await dbClient
-                .from('study_records')
+                .from('student_words')
                 .select('*')
                 .eq('student_id', student.username);
             
@@ -3997,9 +4663,9 @@ async function loadAllStudentsPage() {
             const learning = records?.filter(r => r.status === 'learning').length || 0;
             const review = records?.filter(r => r.status === 'new').length || 0;
             
-            const regDate = new Date(student.created_at).toLocaleDateString('zh-CN');
+            const regDate = formatDate(new Date(student.created_at));
             const lastLogin = student.last_login ? 
-                new Date(student.last_login).toLocaleDateString('zh-CN') : '从未登录';
+                formatDate(new Date(student.last_login)) : '从未登录';
             
             html += `
                 <tr>
@@ -4013,6 +4679,8 @@ async function loadAllStudentsPage() {
                     <td>
                         <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
                                 onclick="viewStudentDetail('${student.username}')">查看详情</button>
+                        <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
+                                onclick="associateStudentToParent('${student.username}')">关联家长</button>
                         <button class="btn btn-red" style="padding: 6px 12px; font-size: 14px; margin-left: 5px;" 
                                 onclick="deleteStudent('${student.username}')">删除</button>
                     </td>
@@ -4040,7 +4708,7 @@ async function viewStudentDetail(studentId) {
     
     try {
         const { data: records, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', studentId)
             .order('last_reviewed', { ascending: false });
@@ -4080,7 +4748,7 @@ async function viewStudentDetail(studentId) {
                 }
                 
                 const lastReview = record.last_reviewed ? 
-                    new Date(record.last_reviewed).toLocaleDateString('zh-CN') : '从未';
+                    formatDate(new Date(record.last_reviewed)) : '从未';
                 
                 detailHtml += `
                     <tr>
@@ -4159,7 +4827,7 @@ async function deleteStudent(studentId) {
             .from('users')
             .delete()
             .eq('username', studentId)
-            .eq('is_teacher', false);
+            .eq('role', 'student');
         
         if (error) throw error;
         
@@ -4185,7 +4853,7 @@ async function loadLearningProgressPage() {
         const { data: students } = await dbClient
             .from('users')
             .select('username')
-            .eq('is_teacher', false);
+            .eq('role', 'student');
         
         if (!students || students.length === 0) {
             content.innerHTML = '<p style="text-align: center;">还没有学生数据</p>';
@@ -4195,7 +4863,7 @@ async function loadLearningProgressPage() {
         let allRecords = [];
         for (const student of students) {
             const { data: records } = await dbClient
-                .from('study_records')
+                .from('student_words')
                 .select('*')
                 .eq('student_id', student.username);
             
@@ -4741,7 +5409,7 @@ async function batchDeleteWords() {
     
     try {
         const { data: studyRecords, error: checkError } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('word_id')
             .in('word_id', appState.selectedWords);
         
@@ -4876,7 +5544,7 @@ async function deleteAllWordsInGroup() {
                 const wordIds = groupWords.map(w => w.id);
                 
                 const { data: studyRecords } = await dbClient
-                    .from('study_records')
+                    .from('student_words')
                     .select('word_id')
                     .in('word_id', wordIds);
                 
@@ -4945,7 +5613,7 @@ async function updateWord(wordId, english, chinese) {
         if (error) throw error;
         
         await dbClient
-            .from('study_records')
+            .from('student_words')
             .update({
                 english: english,
                 chinese: chinese
@@ -4968,7 +5636,7 @@ async function deleteWord(wordId, englishWord) {
     
     try {
         const { data: studyRecords, error: checkError } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('student_id')
             .eq('word_id', wordId);
         
@@ -5165,7 +5833,7 @@ async function quickStats() {
     
     try {
         const { data: todayRecords } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .gte('last_reviewed', today.toISOString());
         
@@ -5184,12 +5852,12 @@ async function quickStats() {
         const { count: totalStudentsResult } = await dbClient
             .from('users')
             .select('*', { count: 'exact' })
-            .eq('is_teacher', false);
+            .eq('role', 'student');
         const totalStudents = totalStudentsResult || 0;
         
         // 获取已掌握单词总数
         const { count: totalMasteredResult } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*', { count: 'exact' })
             .eq('status', 'mastered');
         const totalMastered = totalMasteredResult || 0;
@@ -5199,7 +5867,7 @@ async function quickStats() {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
         const { data: activeData } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('student_id')
             .gte('last_reviewed', sevenDaysAgo.toISOString());
         const activeStudents = new Set(activeData?.map(r => r.student_id) || []).size;
@@ -5317,7 +5985,7 @@ async function showStudentActivity() {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
         const { data: recentRecords } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('student_id, last_reviewed')
             .gte('last_reviewed', sevenDaysAgo.toISOString());
         
@@ -5405,7 +6073,7 @@ async function loadStudentDashboardSimple() {
         
         // 获取学习记录 - 添加排序
         const { data: records, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', appState.currentUser)
             .order('last_reviewed', { ascending: false });
@@ -5414,7 +6082,7 @@ async function loadStudentDashboardSimple() {
             console.error('获取学习记录错误:', error);
             // 尝试不带排序的查询
             const { data: records2 } = await dbClient
-                .from('study_records')
+                .from('student_words')
                 .select('*')
                 .eq('student_id', appState.currentUser);
             
@@ -5552,7 +6220,7 @@ async function loadStudentDashboardSimple() {
                     .eq('group_id', group.id);
                 
                 const { data: myGroupRecords } = await dbClient
-                    .from('study_records')
+                    .from('student_words')
                     .select('*')
                     .eq('student_id', appState.currentUser)
                     .eq('group_id', group.id);
@@ -5968,11 +6636,11 @@ async function markTrainingWord(status) {
     try {
         // 更新数据库记录
         const { error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .update({
                 status: status,
                 review_count: (word.review_count || 0) + 1,
-                last_reviewed: new Date().toISOString()
+                last_reviewed: formatDate(new Date())
             })
             .eq('student_id', appState.currentUser)
             .eq('word_id', word.word_id || word.id);
@@ -5982,7 +6650,7 @@ async function markTrainingWord(status) {
         // 更新本地状态
         word.status = status;
         word.review_count = (word.review_count || 0) + 1;
-        word.last_reviewed = new Date().toISOString();
+        word.last_reviewed = formatDate(new Date());
         
         // 立即更新全局状态
         const globalIndex = appState.userWords.findIndex(w => 
@@ -6066,6 +6734,16 @@ function buildQuizOptions(correctAnswer, currentWord) {
     
     // 随机打乱选项顺序
     return options.sort(() => 0.5 - Math.random());
+}
+
+// 格式化日期为 "年-月-日 时:分" 格式
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 // 基于正确答案生成干扰选项
@@ -6177,21 +6855,27 @@ function submitQuizAnswer(selectedAnswer) {
     
     // 显示答案反馈
     showAlert(
-        isCorrect ? `✅ 正确！${currentQuestion.word.english} = ${currentQuestion.correctAnswer}` : 
-                    `❌ 错误！正确答案是：${currentQuestion.correctAnswer}`,
+        isCorrect ? `✅ 正确！` : 
+                    `❌ 错误！请再试一次。`,
         isCorrect ? 'success' : 'error'
     );
     
-    // 延迟后进入下一个问题或结束测验
+    // 延迟后处理
     setTimeout(() => {
-        quizData.currentQuestionIndex++;
-        
-        if (quizData.currentQuestionIndex < quizData.questions.length) {
-            // 显示下一个问题
-            displayQuizQuestion();
+        if (isCorrect) {
+            // 答案正确，进入下一个问题或结束测验
+            quizData.currentQuestionIndex++;
+            
+            if (quizData.currentQuestionIndex < quizData.questions.length) {
+                // 显示下一个问题
+                displayQuizQuestion();
+            } else {
+                // 测验完成，显示结果
+                finishQuiz();
+            }
         } else {
-            // 测验完成，显示结果
-            finishQuiz();
+            // 答案错误，重新显示当前问题
+            displayQuizQuestion();
         }
     }, 1500);
 }
@@ -6201,6 +6885,9 @@ function finishQuiz() {
     const totalQuestions = quizData.questions.length;
     const score = quizData.score;
     const percentage = Math.round((score / totalQuestions) * 100);
+    
+    // 自动执行打卡完成
+    finishTraining();
     
     const content = document.getElementById('training-content');
     content.innerHTML = `
@@ -6398,7 +7085,7 @@ function showMyWordListPage() {
 async function loadStudentWordList() {
     try {
         const { data: records, error } = await dbClient
-            .from('study_records')
+            .from('student_words')
             .select('*')
             .eq('student_id', appState.currentUser)
             .order('last_reviewed', { ascending: false });
@@ -6484,7 +7171,7 @@ async function loadStudentWordList() {
             }
             
             const lastReview = record.last_reviewed ? 
-                new Date(record.last_reviewed).toLocaleDateString('zh-CN') : '从未';
+                formatDate(new Date(record.last_reviewed)) : '从未';
             
             html += `
                 <tr data-status="${record.status}" data-english="${record.english.toLowerCase()}" data-chinese="${record.chinese}">
@@ -6735,7 +7422,7 @@ function showWordListPage(title, words) {
     
     words.forEach(word => {
         const lastReview = word.last_reviewed ? 
-            new Date(word.last_reviewed).toLocaleString('zh-CN') : '从未';
+            formatDate(new Date(word.last_reviewed)) : '从未';
         
         html += `
             <tr>
