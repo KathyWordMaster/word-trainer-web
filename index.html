@@ -1550,8 +1550,8 @@ async function recordClockInAfterTraining() {
                 .update({
                     is_clock_in: true,
                     study_mode: clockInSystem.selectedTaskMode,
-                    new_word_count: newWordCount,
-                    review_word_count: reviewWordCount,
+                    new_words_count: newWordCount,
+                    review_words_count: reviewWordCount,
                     total_study_time: 30, // 假设学习30分钟
                     study_summary: '完成每日任务',
                     updated_at: new Date().toISOString()
@@ -1569,8 +1569,8 @@ async function recordClockInAfterTraining() {
                     clock_in_date: today,
                     is_clock_in: true,
                     study_mode: clockInSystem.selectedTaskMode,
-                    new_word_count: newWordCount,
-                    review_word_count: reviewWordCount,
+                    new_words_count: newWordCount,
+                    review_words_count: reviewWordCount,
                     total_study_time: 30,
                     study_summary: '完成每日任务'
                 }]);
@@ -2839,8 +2839,8 @@ async function loadChildLearningDetails(studentId) {
                                     <tr>
                                         <td>${record.clock_in_date}</td>
                                         <td>${getStudyModeText(record.study_mode)}</td>
-                                        <td>${record.new_word_count || 0}</td>
-                                        <td>${record.review_word_count || 0}</td>
+                                        <td>${record.new_words_count || 0}</td>
+                                        <td>${record.review_words_count || 0}</td>
                                         <td>${record.total_study_time || 0} 分钟</td>
                                     </tr>
                                 `).join('')}
@@ -4587,6 +4587,9 @@ async function addAllStudentsToGroupFixed(groupId) {
         // 刷新分组详情
         showGroupDetailFixed(groupId);
         
+        // 刷新分组管理列表
+        refreshAllGroupData();
+        
     } catch (error) {
         console.error('添加所有学生错误:', error);
         showAlert(`添加失败: ${error.message}`, 'error');
@@ -4639,8 +4642,8 @@ async function loadAllStudentsPage() {
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th>今日打卡</th>
                             <th>学生姓名</th>
-                            <th>注册时间</th>
                             <th>最后登录</th>
                             <th>单词总数</th>
                             <th>已掌握</th>
@@ -4663,19 +4666,31 @@ async function loadAllStudentsPage() {
             const learning = records?.filter(r => r.status === 'learning').length || 0;
             const review = records?.filter(r => r.status === 'new').length || 0;
             
-            const regDate = formatDate(new Date(student.created_at));
+            // 查询今天打卡状态
+            const today = new Date().toISOString().split('T')[0];
+            const { data: checkinRecord } = await dbClient
+                .from('daily_checkin')
+                .select('is_clock_in')
+                .eq('student_id', student.username)
+                .eq('clock_in_date', today)
+                .single();
+            
+            const clockInStatus = checkinRecord?.is_clock_in ? 
+                '<span style="color: #4CAF50; font-weight: bold;">打卡</span>' : 
+                '<span style="color: #F44336;">未打卡</span>';
+            
             const lastLogin = student.last_login ? 
                 formatDate(new Date(student.last_login)) : '从未登录';
             
             html += `
                 <tr>
+                    <td>${clockInStatus}</td>
                     <td><strong>${student.username}</strong></td>
-                    <td>${regDate}</td>
                     <td>${lastLogin}</td>
                     <td>${total}</td>
-                    <td style="color: #4CAF50;">${mastered}</td>
-                    <td style="color: #FF9800;">${learning}</td>
-                    <td style="color: #F44336;">${review}</td>
+                    <td style="color: #4CAF50; cursor: pointer; text-decoration: underline;" onclick="showWordsList('${student.username}', 'mastered')">${mastered}</td>
+                    <td style="color: #FF9800; cursor: pointer; text-decoration: underline;" onclick="showWordsList('${student.username}', 'learning')">${learning}</td>
+                    <td style="color: #F44336; cursor: pointer; text-decoration: underline;" onclick="showWordsList('${student.username}', 'new')">${review}</td>
                     <td>
                         <button class="btn" style="padding: 6px 12px; font-size: 14px;" 
                                 onclick="viewStudentDetail('${student.username}')">查看详情</button>
@@ -4809,6 +4824,155 @@ async function viewStudentDetail(studentId) {
     } catch (error) {
         console.error('查看学生详情错误:', error);
         content.innerHTML = '<p style="color: red; text-align: center;">加载失败</p>';
+    }
+}
+
+async function showWordsList(studentId, status) {
+    try {
+        const { data: words, error } = await dbClient
+            .from('student_words')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('status', status)
+            .order('last_reviewed', { ascending: false });
+        
+        if (error) throw error;
+        
+        let statusText, statusColor;
+        switch(status) {
+            case 'mastered': statusText = '已掌握'; statusColor = '#4CAF50'; break;
+            case 'learning': statusText = '熟悉'; statusColor = '#FF9800'; break;
+            case 'new': statusText = '需复习'; statusColor = '#F44336'; break;
+            default: statusText = '未知状态'; statusColor = '#666';
+        }
+        
+        let wordsHtml = `
+            <div style="padding: 20px; max-height: 400px; overflow-y: auto;">
+                <h3 style="color: #333; margin-bottom: 20px; text-align: center;">${studentId} 的${statusText}单词（共 ${words?.length || 0} 个）</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f5f5f5;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">英文</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">中文</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">最后复习</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        if (words && words.length > 0) {
+            words.forEach(word => {
+                const lastReview = word.last_reviewed ? 
+                    formatDate(new Date(word.last_reviewed)) : '从未';
+                wordsHtml += `
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>${word.english}</strong></td>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${word.chinese}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">${lastReview}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            wordsHtml += `
+                <tr>
+                    <td colspan="3" style="padding: 40px; text-align: center; color: #999;">
+                        暂无${statusText}单词
+                    </td>
+                </tr>
+            `;
+        }
+        
+        wordsHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+        `;
+        
+        const modalHeader = document.createElement('div');
+        modalHeader.style.cssText = `
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        `;
+        
+        const modalTitle = document.createElement('h3');
+        modalTitle.style.cssText = `
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+        `;
+        modalTitle.textContent = `${studentId} 的${statusText}单词`;
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.style.cssText = `
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        closeBtn.textContent = '×';
+        closeBtn.onclick = () => {
+            document.body.removeChild(modal);
+        };
+        
+        modalHeader.appendChild(modalTitle);
+        modalHeader.appendChild(closeBtn);
+        
+        const modalBody = document.createElement('div');
+        modalBody.innerHTML = wordsHtml;
+        
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        modal.appendChild(modalContent);
+        
+        // 点击弹窗外部关闭
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('获取单词列表错误:', error);
+        showAlert('加载单词列表失败', 'error');
     }
 }
 
@@ -6506,6 +6670,37 @@ function startTrainingSession() {
     showTrainingScreenSimple();
 }
 
+// 处理带有圆括号的单词显示
+function formatWordWithParentheses(word, isChinese = false) {
+    // 先移除所有的双引号
+    let processedWord = word.replace(/"/g, '');
+    
+    // 使用字符串操作处理英文输入法的圆括号()
+    const openParenIndex = processedWord.indexOf('(');
+    const closeParenIndex = processedWord.indexOf(')');
+    
+    if (openParenIndex > 0 && closeParenIndex > openParenIndex) {
+        const mainPart = processedWord.substring(0, openParenIndex).trim();
+        const subPart = processedWord.substring(openParenIndex + 1, closeParenIndex).trim();
+        
+        if (mainPart && subPart) {
+            return `
+                <div style="${isChinese ? 'color: #2E7D32;' : 'color: #333;'} word-break: break-word;font-size: 1.8em;">
+                    ${mainPart}
+                    <div style="font-size: 0.4em; color: #666; margin-top: 8px;">
+                        ${subPart}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    return `
+        <div style="${isChinese ? 'color: #2E7D32;' : 'color: #333;'} word-break: break-word;">
+            ${processedWord}
+        </div>
+    `;
+}
+
 // 简洁版训练界面
 function showTrainingScreenSimple() {
     if (appState.currentWordIndex >= appState.trainingWords.length) {
@@ -6529,61 +6724,58 @@ function showTrainingScreenSimple() {
             <!-- 单词卡片 -->
             <div class="word-card ${appState.isCardFlipped ? 'flipped' : ''}" onclick="flipTrainingCard()">
                 <div class="word-card-content ${appState.isCardFlipped ? chineseFontSize : englishFontSize}">
-                    ${appState.isCardFlipped ? `
-                        <div style="color: #2E7D32; word-break: break-word;">
-                            ${word.chinese}
-                        </div>
-                    ` : `
-                        <div style="color: #333; word-break: break-word;">
-                            ${word.english}
-                        </div>
-                    `}
+                    ${appState.isCardFlipped ? formatWordWithParentheses(word.chinese, true) : formatWordWithParentheses(word.english)}
                 </div>
             </div>
             
-            <!-- 状态按钮 -->
-            <div style="margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                <button class="btn" onclick="markTrainingWord('mastered')" 
-                        style="padding: 15px; background: #4CAF50;">
-                    <div style="font-size: 20px; margin-bottom: 5px;">✅</div>
-                    <div>已掌握</div>
-                </button>
+            ${appState.isCardFlipped ? `
+                <!-- 状态按钮 -->
+                <div style="margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <button class="btn" onclick="markTrainingWord('mastered')" 
+                            style="padding: 15px; background: #4CAF50;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">✅</div>
+                        <div>已掌握</div>
+                    </button>
+                    
+                    <button class="btn btn-blue" onclick="markTrainingWord('learning')" 
+                            style="padding: 15px; background: #2196F3;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">🔄</div>
+                        <div>熟悉</div>
+                    </button>
+                    
+                    <button class="btn" onclick="markTrainingWord('new')" 
+                            style="padding: 15px; background: #FF9800;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">📝</div>
+                        <div>没印象</div>
+                    </button>
+                </div>
                 
-                <button class="btn btn-blue" onclick="markTrainingWord('learning')" 
-                        style="padding: 15px; background: #2196F3;">
-                    <div style="font-size: 20px; margin-bottom: 5px;">🔄</div>
-                    <div>熟悉</div>
-                </button>
+                <!-- 操作按钮 -->
+                <div style="margin-top: 30px; display: flex; gap: 15px;">
+                    <button class="btn" onclick="skipTrainingWord()" 
+                            style="flex: 1; padding: 12px; background: #9E9E9E;">
+                        <div>⏭️ 跳过</div>
+                    </button>
+                    
+                    <button class="btn" onclick="saveTrainingProgress()" 
+                            style="flex: 1; padding: 12px; background: #607D8B;">
+                        <div>💾 保存进度</div>
+                    </button>
+                    
+                    <button class="btn" onclick="showStudentDashboard()" 
+                            style="flex: 1; padding: 12px; background: #795548;">
+                        <div>📋 返回</div>
+                    </button>
+                </div>
                 
-                <button class="btn" onclick="markTrainingWord('new')" 
-                        style="padding: 15px; background: #FF9800;">
-                    <div style="font-size: 20px; margin-bottom: 5px;">📝</div>
-                    <div>没印象</div>
-                </button>
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div style="margin-top: 30px; display: flex; gap: 15px;">
-                <button class="btn" onclick="skipTrainingWord()" 
-                        style="flex: 1; padding: 12px; background: #9E9E9E;">
-                    <div>⏭️ 跳过</div>
-                </button>
-                
-                <button class="btn" onclick="saveTrainingProgress()" 
-                        style="flex: 1; padding: 12px; background: #607D8B;">
-                    <div>💾 保存进度</div>
-                </button>
-                
-                <button class="btn" onclick="showStudentDashboard()" 
-                        style="flex: 1; padding: 12px; background: #795548;">
-                    <div>📋 返回</div>
-                </button>
-            </div>
-            
-            <div style="margin-top: 20px; color: #666; font-size: 14px;">
-                <p>点击卡片查看中文意思</p>
-                <p>选择适当的掌握程度</p>
-            </div>
+                <div style="margin-top: 20px; color: #666; font-size: 14px;">
+                    <p>选择适当的掌握程度</p>
+                </div>
+            ` : `
+                <div style="margin-top: 40px; color: #666; font-size: 14px;">
+                    <p>点击卡片查看中文意思</p>
+                </div>
+            `}
         </div>
     `;
 }
@@ -6604,29 +6796,8 @@ function saveTrainingProgress() {
 }
 
 function flipTrainingCard() {
-    const word = appState.trainingWords[appState.currentWordIndex];
-    const card = document.querySelector('.word-card');
-    const content = card.querySelector('.word-card-content');
-    
-    if (appState.isCardFlipped) {
-        card.classList.remove('flipped');
-        content.className = 'word-card-content ' + getFontSizeClass(word.english);
-        content.innerHTML = `
-            <div style="color: #333; word-break: break-word;">
-                ${word.english}
-            </div>
-        `;
-    } else {
-        card.classList.add('flipped');
-        content.className = 'word-card-content ' + getFontSizeClass(word.chinese);
-        content.innerHTML = `
-            <div style="color: #2E7D32; word-break: break-word;">
-                ${word.chinese}
-            </div>
-        `;
-    }
-    
     appState.isCardFlipped = !appState.isCardFlipped;
+    showTrainingScreenSimple();
 }
 
 // ==================== 修复训练功能 ====================
